@@ -356,10 +356,83 @@
     updateClock();
     setInterval(updateClock, 1000);
 
+    // Keep-Alive & Session Auto-Refresh System
+    window.pingKeepAlive = function (callback) {
+        if (typeof $ === 'undefined') return;
+
+        $.ajax({
+            url: '{{ route('keep-alive') }}',
+            type: 'GET',
+            cache: false,
+            dataType: 'json',
+            success: function (data) {
+                if (data && data.csrf_token) {
+                    $('meta[name="csrf-token"]').attr('content', data.csrf_token);
+                    $.ajaxSetup({
+                        headers: {
+                            'X-CSRF-TOKEN': data.csrf_token
+                        }
+                    });
+                    $('input[name="_token"]').val(data.csrf_token);
+                }
+                if (typeof callback === 'function') {
+                    callback(data);
+                }
+            },
+            error: function () {
+                // Silently ignore ping errors
+            }
+        });
+    };
+
+    // Ping every 5 minutes to keep session active
+    setInterval(window.pingKeepAlive, 5 * 60 * 1000);
+
+    // Refresh immediately when returning to tab
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            window.pingKeepAlive();
+        }
+    });
+    window.addEventListener('focus', function () {
+        window.pingKeepAlive();
+    });
+
+    // Throttled activity refresh: ping at most once every 5 minutes when user is interacting
+    let lastActivityPing = Date.now();
+    function onUserActivity() {
+        const now = Date.now();
+        if (now - lastActivityPing > 5 * 60 * 1000) {
+            lastActivityPing = now;
+            window.pingKeepAlive();
+        }
+    }
+    ['click', 'keydown', 'mousemove', 'scroll'].forEach(function (evt) {
+        window.addEventListener(evt, onUserActivity, { passive: true });
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
         $.ajaxSetup({
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
+        });
+
+        // Global recovery for 419 (CSRF token mismatch)
+        $(document).ajaxError(function (event, jqXHR, ajaxSettings) {
+            if (jqXHR.status === 419 && !ajaxSettings._retried) {
+                ajaxSettings._retried = true;
+                window.pingKeepAlive(function (data) {
+                    if (data && data.csrf_token) {
+                        if (ajaxSettings.headers) {
+                            ajaxSettings.headers['X-CSRF-TOKEN'] = data.csrf_token;
+                        }
+                        if (typeof ajaxSettings.data === 'string' && ajaxSettings.data.indexOf('_token=') !== -1) {
+                            ajaxSettings.data = ajaxSettings.data.replace(/_token=[^&]*/, '_token=' + encodeURIComponent(data.csrf_token));
+                        }
+                        $.ajax(ajaxSettings);
+                    }
+                });
             }
         });
 
