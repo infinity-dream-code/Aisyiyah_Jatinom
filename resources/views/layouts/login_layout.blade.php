@@ -106,6 +106,63 @@
     // updateClock();
     // setInterval(updateClock, 1000);
 </script>
+<script>
+    // Keep-Alive & CSRF Sync for Login Page
+    window.pingKeepAlive = function (callback) {
+        if (typeof $ === 'undefined') return;
+
+        $.ajax({
+            url: '{{ route('keep-alive') }}',
+            type: 'GET',
+            cache: false,
+            dataType: 'json',
+            success: function (data) {
+                if (data && data.csrf_token) {
+                    $('input[name="_token"]').val(data.csrf_token);
+                }
+                if (typeof callback === 'function') {
+                    callback(data);
+                }
+            },
+            error: function () {
+                // Silently ignore ping errors
+            }
+        });
+    };
+
+    // Ping every 3 minutes while on login page
+    setInterval(window.pingKeepAlive, 3 * 60 * 1000);
+
+    // Refresh immediately when returning to tab or back from bfcache
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            window.pingKeepAlive();
+        }
+    });
+    window.addEventListener('focus', function () {
+        window.pingKeepAlive();
+    });
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            window.location.reload();
+        } else {
+            window.pingKeepAlive();
+        }
+    });
+
+    // Refresh on user interaction on login form
+    let lastLoginPing = Date.now();
+    function onLoginInteraction() {
+        const now = Date.now();
+        if (now - lastLoginPing > 3 * 60 * 1000) {
+            lastLoginPing = now;
+            window.pingKeepAlive();
+        }
+    }
+    ['click', 'keydown'].forEach(function (evt) {
+        window.addEventListener(evt, onLoginInteraction, { passive: true });
+    });
+</script>
 
 </body>
 </html>

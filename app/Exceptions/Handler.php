@@ -28,18 +28,50 @@ class Handler extends ExceptionHandler
             //
         });
 
-        $this->renderable(function (TokenMismatchException $e, $request) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Token kedaluwarsa, silakan coba kembali.',
-                    'csrf_token' => csrf_token(),
-                ], 419);
+        $this->renderable(function (Throwable $e, $request) {
+            if (!$this->isRecoverableSessionError($e)) {
+                return null;
             }
 
+            $csrf = $this->safeCsrfToken();
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => 'Silakan coba lagi.',
+                    'csrf_token' => $csrf,
+                ], $e instanceof TokenMismatchException ? 419 : 200);
+            }
+
+            $fallback = url()->previous() ?: url('/admin');
+
             return redirect()
-                ->back()
-                ->withInput($request->except('_token', 'password', 'password_confirmation'))
-                ->with('warning', 'Halaman diperbarui untuk memperbarui token keamanan. Silakan coba kembali.');
+                ->to($fallback)
+                ->withInput($request->except('_token', 'password', 'password_confirmation'));
         });
+    }
+
+    private function isRecoverableSessionError(Throwable $e): bool
+    {
+        if ($e instanceof TokenMismatchException) {
+            return true;
+        }
+
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'session store not set')
+            || str_contains($message, 'failed to retrieve the session')
+            || str_contains($message, 'unable to create lockable file')
+            || str_contains($message, 'resource temporarily unavailable')
+            || str_contains($message, 'session file')
+            || (str_contains($message, 'failed to open stream') && str_contains($message, 'session'));
+    }
+
+    private function safeCsrfToken(): ?string
+    {
+        try {
+            return csrf_token();
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 }

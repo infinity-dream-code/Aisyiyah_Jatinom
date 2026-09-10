@@ -273,10 +273,22 @@
         };
 
         window.onTurnstileExpired = function () {
+            if (window.turnstile) {
+                try {
+                    window.turnstile.reset();
+                    return;
+                } catch (e) {}
+            }
             switchToMathFallback('expired');
         };
 
         window.onTurnstileTimeout = function () {
+            if (window.turnstile) {
+                try {
+                    window.turnstile.reset();
+                    return;
+                } catch (e) {}
+            }
             switchToMathFallback('timeout');
         };
 
@@ -337,10 +349,11 @@
                 const widget = document.querySelector('.cf-turnstile iframe, .cf-turnstile [name="cf-turnstile-response"]');
                 const tokenInput = document.querySelector('[name="cf-turnstile-response"]');
                 const hasToken = tokenInput && tokenInput.value;
-                if (!widget && !hasToken) {
+                const isUserTyping = document.activeElement && (document.activeElement.id === 'username' || document.activeElement.id === 'password');
+                if (!widget && !hasToken && !isUserTyping) {
                     switchToMathFallback('widget_missing');
                 }
-            }, 8000);
+            }, 15000);
             @endif
 
             $('.showPassword').click(function () {

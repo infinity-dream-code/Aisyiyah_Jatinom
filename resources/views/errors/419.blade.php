@@ -1,5 +1,19 @@
 @extends('errors::minimal')
 
-@section('title', __('Page Expired'))
-@section('code', '419')
-@section('message', __('Page Expired'))
+@section('title', __('Memuat ulang'))
+@section('code', '')
+@section('message', '')
+
+<script>
+    (function () {
+        if (document.referrer) {
+            window.location.replace(document.referrer);
+            return;
+        }
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+        window.location.reload();
+    })();
+</script>

@@ -1,15 +1,32 @@
+function isSessionNotice(Message) {
+    if (typeof Message !== 'string') {
+        return false;
+    }
+
+    const text = Message.toLowerCase();
+    return text.includes('sesi')
+        || text.includes('session')
+        || text.includes('kedaluwarsa')
+        || text.includes('token anda')
+        || text.includes('login kembali');
+}
+
+function suppressSessionNotice(Message) {
+    if (!isSessionNotice(Message)) {
+        return false;
+    }
+
+    if (typeof window.pingKeepAlive === 'function') {
+        window.pingKeepAlive();
+    }
+
+    return true;
+}
+
 function errorAlert(Message) {
     if (!Message) return;
 
-    // Suppress session expired notifications as requested
-    if (typeof Message === 'string' && (
-        Message.toLowerCase().includes('sesi') ||
-        Message.toLowerCase().includes('session')
-    )) {
-        console.warn('Session alert suppressed:', Message);
-        if (typeof window.pingKeepAlive === 'function') {
-            window.pingKeepAlive();
-        }
+    if (suppressSessionNotice(Message)) {
         return;
     }
 
@@ -63,6 +80,10 @@ function successAlert(Message) {
 }
 
 function warningAlert(Message) {
+    if (suppressSessionNotice(Message)) {
+        return;
+    }
+
     const fillColor = '#fdb528';
     const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fillColor}"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM11 15H13V17H11V15ZM11 7H13V13H11V7Z"></path></svg>`;
 
@@ -88,6 +109,10 @@ function warningAlert(Message) {
 }
 
 function infoAlert(Message = null) {
+    if (suppressSessionNotice(Message)) {
+        return;
+    }
+
     Swal.fire({
         html: Message,
         icon: "info",
@@ -170,6 +195,10 @@ function toastWarning(message, title) {
 }
 
 function toastError(message, title) {
+    if (suppressSessionNotice(message) || suppressSessionNotice(title)) {
+        return;
+    }
+
     toastr.error(message, title, {
         positionClass: 'toast-top-right',
         closeButton: true,
