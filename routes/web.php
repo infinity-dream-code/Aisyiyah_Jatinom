@@ -8,6 +8,9 @@ Auth::routes([
     "register" => false,
 ]);
 Route::get("/", [AuthController::class, "index"])->name("index");
+Route::get("/home", function () {
+    return redirect()->route("admin.index");
+});
 
 Route::get("/reload-captcha", [AuthController::class, "reloadCaptcha"])->name("reload-captcha");
 Route::get("/reload-math-captcha", [\App\Http\Controllers\Auth\LoginController::class, "reloadMathCaptcha"])->name("reload-math-captcha");

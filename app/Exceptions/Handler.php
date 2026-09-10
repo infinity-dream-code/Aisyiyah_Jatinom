@@ -29,7 +29,7 @@ class Handler extends ExceptionHandler
         });
 
         $this->renderable(function (Throwable $e, $request) {
-            if (!$this->isRecoverableSessionError($e)) {
+            if (!$this->isTransientError($e)) {
                 return null;
             }
 
@@ -39,7 +39,11 @@ class Handler extends ExceptionHandler
                 return response()->json([
                     'message' => 'Silakan coba lagi.',
                     'csrf_token' => $csrf,
-                ], $e instanceof TokenMismatchException ? 419 : 200);
+                ], $e instanceof TokenMismatchException ? 419 : 503);
+            }
+
+            if ($request->isMethod('GET') && !$request->boolean('_retry')) {
+                return redirect()->to($request->fullUrlWithQuery(['_retry' => 1]));
             }
 
             $fallback = url()->previous() ?: url('/admin');
@@ -50,19 +54,25 @@ class Handler extends ExceptionHandler
         });
     }
 
-    private function isRecoverableSessionError(Throwable $e): bool
+    private function isTransientError(Throwable $e): bool
     {
         if ($e instanceof TokenMismatchException) {
             return true;
         }
 
-        $message = strtolower($e->getMessage());
+        $message = strtolower($e->getMessage() . ' ' . $e->getPrevious()?->getMessage());
 
         return str_contains($message, 'session store not set')
             || str_contains($message, 'failed to retrieve the session')
             || str_contains($message, 'unable to create lockable file')
             || str_contains($message, 'resource temporarily unavailable')
             || str_contains($message, 'session file')
+            || str_contains($message, 'has gone away')
+            || str_contains($message, 'deadlock')
+            || str_contains($message, 'lock wait timeout')
+            || str_contains($message, 'too many connections')
+            || str_contains($message, 'connection refused')
+            || str_contains($message, 'try restarting transaction')
             || (str_contains($message, 'failed to open stream') && str_contains($message, 'session'));
     }
 
