@@ -10,10 +10,10 @@ class MultiVa
 {
     public const OPEN = '93';
     public const CLOSE = '94';
-    public const OPEN_PREFIX = '797793';
-    public const CLOSE_PREFIX = '797794';
-    public const LEGACY_OPEN_PREFIXES = ['7797793', '779793'];
-    public const LEGACY_CLOSE_PREFIXES = ['7797794', '779794'];
+    public const OPEN_PREFIX = '752088';
+    public const CLOSE_PREFIX = '752088';
+    public const LEGACY_OPEN_PREFIXES = ['7797793', '779793', '797793'];
+    public const LEGACY_CLOSE_PREFIXES = ['7797794', '779794', '797794'];
 
     private static ?\Illuminate\Support\Collection $masters = null;
 
