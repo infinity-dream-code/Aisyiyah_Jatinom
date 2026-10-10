@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\mst_tagihan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class MultiVa
@@ -20,6 +21,87 @@ class MultiVa
     public static function closeEnabled(): bool
     {
         return (bool) config('app.va_close_enabled', false);
+    }
+
+    /**
+     * Nama kolom VA di scctbill (va / VA), atau null jika belum ada di DB client.
+     * Tanpa ini, SELECT scctbill.va memicu 500 di banyak halaman.
+     */
+    public static function billVaColumn(): ?string
+    {
+        static $resolved = false;
+        static $column = null;
+
+        if ($resolved) {
+            return $column;
+        }
+
+        $resolved = true;
+
+        try {
+            $schema = Schema::connection('DATA_MYSQL');
+            if ($schema->hasColumn('scctbill', 'va')) {
+                $column = 'va';
+            } elseif ($schema->hasColumn('scctbill', 'VA')) {
+                $column = 'VA';
+            }
+        } catch (\Throwable $e) {
+            $column = null;
+        }
+
+        return $column;
+    }
+
+    public static function billVaSelect(string $table = 'scctbill'): ?string
+    {
+        $column = self::billVaColumn();
+
+        return $column ? "{$table}.{$column}" : null;
+    }
+
+    public static function pushBillVaSelect(array &$select, string $table = 'scctbill'): void
+    {
+        $expr = self::billVaSelect($table);
+        if ($expr !== null) {
+            $select[] = $expr;
+        }
+    }
+
+    public static function billHasColumn(string $column): bool
+    {
+        static $cache = [];
+
+        if (array_key_exists($column, $cache)) {
+            return $cache[$column];
+        }
+
+        try {
+            $cache[$column] = Schema::connection('DATA_MYSQL')->hasColumn('scctbill', $column);
+        } catch (\Throwable $e) {
+            $cache[$column] = false;
+        }
+
+        return $cache[$column];
+    }
+
+    /** Buang select kolom VA / isINSTALLABLE jika belum ada di DB (hindari 500). */
+    public static function filterBillSelect(array $select): array
+    {
+        return array_values(array_filter($select, function ($expr) {
+            if (!is_string($expr)) {
+                return true;
+            }
+
+            if (preg_match('/\bscctbill\.(va|VA)\b/', $expr) || preg_match('/^(va|VA)$/', $expr)) {
+                return self::billVaColumn() !== null;
+            }
+
+            if (stripos($expr, 'isINSTALLABLE') !== false) {
+                return self::billHasColumn('isINSTALLABLE');
+            }
+
+            return true;
+        }));
     }
 
     public static function openPrefix(): string

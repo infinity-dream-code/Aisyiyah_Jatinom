@@ -155,6 +155,27 @@ class DataPenerimaanController extends Controller
 
     public function getData(Request $request)
     {
+        try {
+            return $this->buildGetDataResponse($request);
+        } catch (\Throwable $e) {
+            Log::error('data-penerimaan.getData.failed', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'draw' => (int) $request->get('draw'),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'message' => 'Gagal memuat data. Silakan coba lagi.',
+            ], 200);
+        }
+    }
+
+    private function buildGetDataResponse(Request $request)
+    {
         $draw = $request->get('draw');
         $start = $request->get("start");
         $rowperpage = $request->get("length");
@@ -195,16 +216,20 @@ class DataPenerimaanController extends Controller
                 switch ($key) {
                     case 'sccttran.TRXDATE_start':
                     case 'scctbill.PAIDDT_start':
-                        $date = Carbon::createFromFormat('d-m-Y', $val)->startOfDay();
-                        if ($date) {
+                        try {
+                            $date = Carbon::createFromFormat('d-m-Y', (string) $val)->startOfDay();
                             $filters[] = ['scctbill.PAIDDT', '>=', $date];
+                        } catch (\Throwable $e) {
+                            // ignore invalid date filter
                         }
                         break;
                     case 'sccttran.TRXDATE_end':
                     case 'scctbill.PAIDDT_end':
-                        $date = Carbon::createFromFormat('d-m-Y', $val)->endOfDay();
-                        if ($date) {
+                        try {
+                            $date = Carbon::createFromFormat('d-m-Y', (string) $val)->endOfDay();
                             $filters[] = ['scctbill.PAIDDT', '<=', $date];
+                        } catch (\Throwable $e) {
+                            // ignore invalid date filter
                         }
                         break;
                     case 'scctbill.BILLAC_start':
@@ -313,7 +338,6 @@ class DataPenerimaanController extends Controller
             'scctbill.TRANSNO as BILL_TRANSNO',
             'scctbill.NOREFF as BILL_NOREFF',
             'scctbill.FIDBANK as BILL_FIDBANK',
-            'scctbill.va',
             'scctcust.nocust',
             'scctcust.nmcust',
             'scctcust.CODE02',
@@ -323,6 +347,7 @@ class DataPenerimaanController extends Controller
             'scctcust.GENUS',
             DB::raw('NULL as GENUS1'),
         ];
+        MultiVa::pushBillVaSelect($select);
 
         $query = $this->lunasBillBaseQuery()
             ->when(!blank($searchValue), function ($query) use ($whereAny, $searchValue) {
@@ -1227,7 +1252,7 @@ class DataPenerimaanController extends Controller
                 $endDate = Carbon::createFromFormat('d-m-Y', (string)$request->input('filter.sampai_tanggal'))->endOfDay();
                 $q->where('scctbill.PAIDDT', '<=', $endDate);
             })
-            ->select([
+            ->select(MultiVa::filterBillSelect([
                 'scctbill.BILLNM',
                 'scctbill.BILLAC',
                 'scctbill.BILLAM',
@@ -1239,7 +1264,7 @@ class DataPenerimaanController extends Controller
                 'scctbill.va',
                 'scctbill.isINSTALLABLE',
                 'scctcust.NOCUST',
-            ])
+            ]))
             ->orderBy('scctbill.FUrutan', 'asc')
             ->orderBy('scctbill.PAIDDT', 'desc')
             ->get()

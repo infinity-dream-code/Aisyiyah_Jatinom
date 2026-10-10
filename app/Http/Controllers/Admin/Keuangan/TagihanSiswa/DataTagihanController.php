@@ -441,7 +441,7 @@ class DataTagihanController extends Controller
 
             $records = scctbill::query()
                 ->join('scctcust', 'scctcust.CUSTID', '=', 'scctbill.CUSTID')
-                ->select([
+                ->select(MultiVa::filterBillSelect([
                     'scctcust.nmcust',
                     'scctcust.nocust',
                     'scctbill.AA',
@@ -460,7 +460,7 @@ class DataTagihanController extends Controller
                     'scctbill.isINSTALLABLE',
                     'scctcust.CODE02',
                     'scctcust.DESC02',
-                ])
+                ]))
                 ->whereIn('scctbill.BILLNM', $mstTagihan->pluck('tagihan'))
                 ->where(function ($q) {
                     $this->applyBelumLunasScope($q);
@@ -634,7 +634,7 @@ class DataTagihanController extends Controller
             'scctbill.BILLNM',
         ];
 
-        $select = array_unique([
+        $select = array_unique(MultiVa::filterBillSelect([
             'scctcust.nocust as NOCUST',
             'scctcust.nmcust as NMCUST',
             'scctcust.NUM2ND',
@@ -656,7 +656,7 @@ class DataTagihanController extends Controller
             'scctbill.BTA',
             'scctbill.FIDBANK',
             'scctbill.CUSTID',
-        ]);
+        ]));
 
         $query = scctbill::join('scctcust', 'scctcust.CUSTID', '=', 'scctbill.CUSTID')
             ->select($select)

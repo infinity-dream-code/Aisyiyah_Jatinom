@@ -8,7 +8,8 @@ function isSessionNotice(Message) {
         || text.includes('session')
         || text.includes('kedaluwarsa')
         || text.includes('token anda')
-        || text.includes('login kembali');
+        || text.includes('login kembali')
+        || text.includes('internal server error');
 }
 
 function suppressSessionNotice(Message) {

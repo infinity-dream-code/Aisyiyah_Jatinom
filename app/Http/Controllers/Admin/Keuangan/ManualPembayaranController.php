@@ -120,7 +120,7 @@ class ManualPembayaranController extends Controller
                 'scctcust.nocust',
             ];
 
-            $select = array_unique(array_merge($whereAny, [
+            $select = array_unique(array_merge($whereAny, MultiVa::filterBillSelect([
                 'scctbill.AA',
                 'scctbill.BILLNM',
                 'scctbill.BILLAM',
@@ -142,7 +142,7 @@ class ManualPembayaranController extends Controller
                 'scctcust.NOCUST',
                 'scctcust.NUM2ND',
                 'scctcust.NMCUST',
-            ]));
+            ])));
 
             $query = scctbill::leftJoin('scctcust', 'scctcust.CUSTID', 'scctbill.CUSTID')
                 ->where('scctbill.CUSTID', $request->siswa)

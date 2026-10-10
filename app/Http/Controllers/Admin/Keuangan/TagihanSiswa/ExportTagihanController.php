@@ -140,7 +140,7 @@ class ExportTagihanController extends Controller
             'scctcust.NOCUST',
         ];
 
-        $select = array_unique(array_merge($whereAny, [
+        $select = array_unique(array_merge($whereAny, MultiVa::filterBillSelect([
             'scctbill.AA',
             'scctbill.BILLNM',
             'scctbill.BILLAM',
@@ -155,8 +155,7 @@ class ExportTagihanController extends Controller
             'scctcust.DESC02',
             'scctcust.NUM2ND',
             'scctbill.CUSTID',
-
-        ]));
+        ])));
 
         $query = scctbill::leftJoin('scctcust', 'scctcust.CUSTID', 'scctbill.CUSTID')
             ->where('scctbill.PAIDST', 0)

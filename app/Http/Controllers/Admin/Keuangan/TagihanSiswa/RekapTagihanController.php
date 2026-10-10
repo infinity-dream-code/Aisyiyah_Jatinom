@@ -481,7 +481,7 @@ class RekapTagihanController extends Controller
             'scctcust.NOCUST',
         ];
 
-        $select = array_unique(array_merge($whereAny, [
+        $select = array_unique(array_merge($whereAny, MultiVa::filterBillSelect([
             'scctbill.AA',
             'scctbill.BILLNM',
             'scctbill.BILLAC',
@@ -505,7 +505,7 @@ class RekapTagihanController extends Controller
             'scctbill_detail.KodePost',
             'u_akun.KodeAkun',
             'u_akun.NamaAkun',
-        ]));
+        ])));
 
         $query = scctbill_detail::join('scctbill', function ($join) {
             // Relasi utama BILLCD, ditambah CUSTID agar join tidak melebar/duplikatif.

@@ -566,7 +566,7 @@ class RekapPenerimaanController extends Controller
                 'scctbill.BILLNM',
             ];
 
-            $select = array_unique([
+            $select = array_unique(MultiVa::filterBillSelect([
                 'sccttran.urut',
                 'sccttran.CUSTID',
                 'sccttran.METODE',
@@ -598,7 +598,7 @@ class RekapPenerimaanController extends Controller
                 'scctcust.DESC03',
                 'scctcust.DESC04',
                 'scctcust.NUM2ND',
-            ]);
+            ]));
 
             $query = $this->paymentBaseQuery()
                 ->when(!blank($searchValue), function ($query) use ($whereAny, $searchValue) {

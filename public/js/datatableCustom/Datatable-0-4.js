@@ -1069,9 +1069,25 @@ async function dataTableCreate(options) {
                     }
                     return;
                 }
+                // Transient 500/503: silent retry once (no "Internal Server Error" popup).
+                if ((xhr.status === 500 || xhr.status === 503) && !options._retried500) {
+                    options._retried500 = true;
+                    const reload = function () {
+                        if (window.DT && window.DT[options.tableId]) {
+                            window.DT[options.tableId].ajax.reload(null, false);
+                        }
+                    };
+                    if (typeof window.pingKeepAlive === 'function') {
+                        window.pingKeepAlive(function () { reload(); });
+                    } else {
+                        reload();
+                    }
+                    return;
+                }
                 const descriptions = {
                     '404': 'Data tidak ditemukan!',
-                    '500': 'Internal Server Error',
+                    '500': 'Gagal memuat data. Silakan klik Cari lagi.',
+                    '503': 'Server sibuk. Silakan coba lagi.',
                 };
                 errorAlert(descriptions[xhr.status] || 'Ada masalah saat mengambil data dari server, Silahkan muat ulang halaman');
             }
@@ -1687,17 +1703,30 @@ async function getDT(options) {
     $.ajax({
         url: options.columnUrl,
         success: finishColumns,
-            error: function (xhr) {
+            error: function onColumnError(xhr) {
                 if (xhr.status === 401 || xhr.status === 419) {
                     if (typeof window.pingKeepAlive === 'function') {
                         window.pingKeepAlive();
                     }
                     return;
                 }
+                if ((xhr.status === 500 || xhr.status === 503) && !options._retriedCol500) {
+                    options._retriedCol500 = true;
+                    const retryColumns = function () {
+                        $.ajax({ url: options.columnUrl, success: finishColumns, error: onColumnError });
+                    };
+                    if (typeof window.pingKeepAlive === 'function') {
+                        window.pingKeepAlive(retryColumns);
+                    } else {
+                        retryColumns();
+                    }
+                    return;
+                }
                 const descriptions = {
                     403: 'Anda tidak memiliki izin untuk mengakses kolom data.',
                     404: 'Endpoint kolom data tidak ditemukan.',
-                    500: 'Gagal memuat definisi kolom tabel.',
+                    500: 'Gagal memuat definisi kolom tabel. Silakan muat ulang halaman.',
+                    503: 'Server sibuk. Silakan muat ulang halaman.',
                 };
                 errorAlert(descriptions[xhr.status] || 'Gagal memuat kolom tabel. Silahkan muat ulang halaman.');
             }

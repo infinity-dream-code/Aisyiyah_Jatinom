@@ -300,7 +300,7 @@
 <!-- Main JS -->
 <script src="{{asset('js/main.js')}}"></script>
 
-<script src="{{asset('js/alerts.js')}}?v=20260910-session"></script>
+<script src="{{asset('js/alerts.js')}}?v=20261010-no500alert"></script>
 <script>
     window.APP_VA_OPEN = @json((string) config('app.va_open', '752088'));
     window.APP_VA_CLOSE = @json((string) config('app.va_close', '752088'));
@@ -468,24 +468,35 @@
         });
 
         $(document).ajaxError(function (event, jqXHR, ajaxSettings) {
-            if ((jqXHR.status !== 419 && jqXHR.status !== 401) || ajaxSettings._retried) {
+            const status = jqXHR.status;
+            const canRetryAuth = (status === 419 || status === 401) && !ajaxSettings._retried;
+            const canRetryServer = (status === 500 || status === 503) && !ajaxSettings._retried500
+                && String(ajaxSettings.type || 'GET').toUpperCase() === 'GET';
+            if (!canRetryAuth && !canRetryServer) {
                 return;
             }
-            // Silent recover: refresh CSRF / session, retry once. No login redirect, no sesi alert.
-            ajaxSettings._retried = true;
+            // Silent recover once. No login redirect, no "Internal Server Error" spam.
+            if (canRetryAuth) {
+                ajaxSettings._retried = true;
+            }
+            if (canRetryServer) {
+                ajaxSettings._retried500 = true;
+            }
             window.pingKeepAlive(function (data) {
-                if (!data || !data.csrf_token) {
-                    return;
-                }
-                applyCsrfToken(data.csrf_token);
-                ajaxSettings.headers = ajaxSettings.headers || {};
-                ajaxSettings.headers['X-CSRF-TOKEN'] = data.csrf_token;
-                if (typeof ajaxSettings.data === 'string' && ajaxSettings.data.indexOf('_token=') !== -1) {
-                    ajaxSettings.data = ajaxSettings.data.replace(/_token=[^&]*/, '_token=' + encodeURIComponent(data.csrf_token));
-                } else if (ajaxSettings.data && typeof FormData !== 'undefined' && ajaxSettings.data instanceof FormData) {
-                    ajaxSettings.data.set('_token', data.csrf_token);
-                } else if (ajaxSettings.data && typeof ajaxSettings.data === 'object') {
-                    ajaxSettings.data._token = data.csrf_token;
+                if (canRetryAuth) {
+                    if (!data || !data.csrf_token) {
+                        return;
+                    }
+                    applyCsrfToken(data.csrf_token);
+                    ajaxSettings.headers = ajaxSettings.headers || {};
+                    ajaxSettings.headers['X-CSRF-TOKEN'] = data.csrf_token;
+                    if (typeof ajaxSettings.data === 'string' && ajaxSettings.data.indexOf('_token=') !== -1) {
+                        ajaxSettings.data = ajaxSettings.data.replace(/_token=[^&]*/, '_token=' + encodeURIComponent(data.csrf_token));
+                    } else if (ajaxSettings.data && typeof FormData !== 'undefined' && ajaxSettings.data instanceof FormData) {
+                        ajaxSettings.data.set('_token', data.csrf_token);
+                    } else if (ajaxSettings.data && typeof ajaxSettings.data === 'object') {
+                        ajaxSettings.data._token = data.csrf_token;
+                    }
                 }
                 $.ajax(ajaxSettings);
             });
