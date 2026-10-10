@@ -119,16 +119,23 @@
                                        placeholder="Contoh: SPP" required>
                                 <div class="invalid-feedback" role="alert"><strong></strong></div>
                             </div>
+                            @if(\App\Support\MultiVa::masterVaSelectable())
                             <div class="mb-3">
                                 <label class="form-label required" for="VA">VA</label>
                                 <select class="form-select" name="VA" id="VA" data-control="select2" required>
                                     <option value="93">93 - Open</option>
-                                    @if(\App\Support\MultiVa::closeEnabled())
                                     <option value="94">94 - Close</option>
-                                    @endif
                                 </select>
                                 <div class="invalid-feedback" role="alert"><strong></strong></div>
                             </div>
+                            @else
+                            <div class="mb-3">
+                                <label class="form-label" for="VA">VA</label>
+                                <input type="text" class="form-control" value="93 - Open (752088)" readonly disabled>
+                                <input type="hidden" name="VA" id="VA" value="93">
+                                <small class="text-muted">Client ini hanya memakai VA Open.</small>
+                            </div>
+                            @endif
                             <div class="mb-3">
                                 <label class="form-label required" for="isINSTALLMENT">Status Cicil</label>
                                 <select class="form-select" name="isINSTALLMENT" id="isINSTALLMENT"
@@ -175,16 +182,23 @@
                                        disabled>
                                 <small class="text-muted">Nama tagihan tidak dapat diubah.</small>
                             </div>
+                            @if(\App\Support\MultiVa::masterVaSelectable())
                             <div class="mb-3">
                                 <label class="form-label required" for="edit_VA">VA</label>
                                 <select class="form-select" name="VA" id="edit_VA" data-control="select2" required>
                                     <option value="93">93 - Open</option>
-                                    @if(\App\Support\MultiVa::closeEnabled())
                                     <option value="94">94 - Close</option>
-                                    @endif
                                 </select>
                                 <div class="invalid-feedback" role="alert"><strong></strong></div>
                             </div>
+                            @else
+                            <div class="mb-3">
+                                <label class="form-label" for="edit_VA">VA</label>
+                                <input type="text" class="form-control" value="93 - Open (752088)" readonly disabled>
+                                <input type="hidden" name="VA" id="edit_VA" value="93">
+                                <small class="text-muted">Client ini hanya memakai VA Open.</small>
+                            </div>
+                            @endif
                             <div class="mb-3">
                                 <label class="form-label required" for="edit_isINSTALLMENT">Status Cicil</label>
                                 <select class="form-select" name="isINSTALLMENT" id="edit_isINSTALLMENT"

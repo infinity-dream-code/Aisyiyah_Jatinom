@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Mockery\Exception;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -122,18 +123,51 @@ class SaldoVirtualAccountController extends Controller
 
     protected function transListQuery()
     {
-        $view = MultiVa::transView($this->reffBank);
+        $view = MultiVa::resolveExistingView([
+            MultiVa::transView($this->reffBank),
+            'v_trans_saldo',
+            'v_trans_saldo_multivapertagihan93',
+            'v_trans_saldo_multivapertagihan1',
+            'v_trans_saldo_multivapertagihan94',
+            'v_trans_saldo_multivapertagihan2',
+            'v_trans_saldo_va',
+        ]);
+
+        if ($view) {
+            return DB::connection('DATA_MYSQL')
+                ->table($view . ' as trx')
+                ->leftJoin('scctcust as c', 'c.NOCUST', '=', 'trx.NOCUST')
+                ->select([
+                    'trx.TRXDATE as TRXDATE',
+                    'trx.KETERANGAN as KETERANGAN',
+                    'trx.DEBET as DEBET',
+                    'trx.KREDIT as KREDIT',
+                    'trx.NOCUST as NOCUST',
+                    'trx.NUM2ND as NUM2ND',
+                    'trx.NOREFF as NOREFF',
+                    'c.NMCUST as NMCUST',
+                    'c.CODE01 as CODE01',
+                    'c.CODE02 as CODE02',
+                    'c.DESC02 as DESC02',
+                    'c.DESC03 as DESC03',
+                ]);
+        }
 
         return DB::connection('DATA_MYSQL')
-            ->table($view . ' as trx')
-            ->leftJoin('scctcust as c', 'c.NOCUST', '=', 'trx.NOCUST')
+            ->table('sccttran as trx')
+            ->leftJoin('scctcust as c', 'c.CUSTID', '=', 'trx.CUSTID')
+            ->where(function ($q) {
+                $q->whereNull('trx.FIDBANK')
+                    ->orWhereRaw("TRIM(COALESCE(CAST(trx.FIDBANK AS CHAR), '')) = ''")
+                    ->orWhereRaw("TRIM(COALESCE(CAST(trx.FIDBANK AS CHAR), '')) != ?", ['1140000']);
+            })
             ->select([
                 'trx.TRXDATE as TRXDATE',
-                'trx.KETERANGAN as KETERANGAN',
+                DB::raw('COALESCE(trx.METODE, trx.NOREFF, "") as KETERANGAN'),
                 'trx.DEBET as DEBET',
                 'trx.KREDIT as KREDIT',
-                'trx.NOCUST as NOCUST',
-                'trx.NUM2ND as NUM2ND',
+                'c.NOCUST as NOCUST',
+                'c.NUM2ND as NUM2ND',
                 'trx.NOREFF as NOREFF',
                 'c.NMCUST as NMCUST',
                 'c.CODE01 as CODE01',
@@ -354,6 +388,28 @@ class SaldoVirtualAccountController extends Controller
     }
 
     public function getData(Request $request)
+    {
+        try {
+            return $this->buildGetDataResponse($request);
+        } catch (\Throwable $e) {
+            Log::error('saldo-va.getData.failed', [
+                'reff' => $this->reffBank,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'draw' => (int) $request->get('draw'),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'message' => 'Gagal memuat data saldo. Silakan coba lagi.',
+            ], 200);
+        }
+    }
+
+    private function buildGetDataResponse(Request $request)
     {
         $draw = $request->get('draw');
         $start = $request->get("start");

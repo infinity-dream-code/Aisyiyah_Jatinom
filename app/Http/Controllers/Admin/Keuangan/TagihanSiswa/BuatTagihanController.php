@@ -337,7 +337,7 @@ class BuatTagihanController extends Controller
                         'BILLAC' => $request->fungsi,
                         'BILLCD' => $billCD,
                         'BILLNM' => $billNm,
-                    ], [
+                    ], MultiVa::sanitizeBillPayload([
                         'BILLAM' => 0,
                         'PAIDST' => 0,
                         'FUrutan' => $urut,
@@ -345,7 +345,7 @@ class BuatTagihanController extends Controller
                         'FSTSBolehBayar' => 1,
                         'BTA' => $tahun_pelajaran_bta,
                         'va' => MultiVa::vaForBillName($billNm),
-                    ]);
+                    ]));
 
                     $bill->increment('BILLAM', (int) $nominal);
 

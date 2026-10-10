@@ -277,7 +277,7 @@ class EditManualController extends Controller
 
             $mstTagihan = mst_tagihan::where('tagihan', $tagihan->BILLNM)->first();
 
-            scctbill::create([
+            scctbill::create(MultiVa::sanitizeBillPayload([
                 'CUSTID' => $request->siswa,
                 'BILLAC' => $tagihan->BILLAC,
                 'BILLCD' => $billCD,
@@ -293,7 +293,7 @@ class EditManualController extends Controller
                 'INSTALLMENT' => 0,
                 'isINSTALLABLE' => (int) ($mstTagihan->isINSTALLMENT ?? $tagihan->isINSTALLABLE ?? 0),
                 'va' => MultiVa::vaForBillName($tagihan->BILLNM, $mstTagihan->VA ?? $tagihan->va ?? null),
-            ]);
+            ]));
 
             DB::commit();
             return response()->json(['message' => 'Tagihan Berhasil Disalin dan disimpan!'], 200);

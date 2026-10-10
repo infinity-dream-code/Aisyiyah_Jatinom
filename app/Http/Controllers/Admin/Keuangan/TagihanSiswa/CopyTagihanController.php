@@ -162,7 +162,7 @@ class CopyTagihanController extends Controller
                     $newBillCd = "{$billYear}/{$billMonth}-{$newUrut}-{$suffix}";
                 }
 
-                $newBill = scctbill::create([
+                $newBill = scctbill::create(MultiVa::sanitizeBillPayload([
                     'CUSTID' => $oldBill->CUSTID,
                     'BILLCD' => $newBillCd,
                     'BILLAC' => $newBillac,
@@ -178,7 +178,7 @@ class CopyTagihanController extends Controller
                     'FIDBANK' => null,
                     'BTA' => $request->thn_aka,
                     'va' => MultiVa::vaForBillName($tagihanBaruNm, $oldBill->va ?? $oldBill->VA ?? null),
-                ]);
+                ]));
 
                 $details = scctbill_detail::where('CUSTID', $oldBill->CUSTID)
                     ->where('BILLCD', $oldBill->BILLCD)

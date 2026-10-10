@@ -23,6 +23,34 @@ class MultiVa
         return (bool) config('app.va_close_enabled', false);
     }
 
+    /** Apakah mst_tagihan punya kolom VA (beberapa client open-only belum punya). */
+    public static function masterHasVaColumn(): bool
+    {
+        static $resolved = false;
+        static $has = false;
+
+        if ($resolved) {
+            return $has;
+        }
+
+        $resolved = true;
+
+        try {
+            $schema = Schema::connection('DATA_MYSQL');
+            $has = $schema->hasColumn('mst_tagihan', 'VA') || $schema->hasColumn('mst_tagihan', 'va');
+        } catch (\Throwable $e) {
+            $has = false;
+        }
+
+        return $has;
+    }
+
+    /** UI/API boleh memilih Close hanya jika close enabled DAN kolom VA ada. */
+    public static function masterVaSelectable(): bool
+    {
+        return self::closeEnabled() && self::masterHasVaColumn();
+    }
+
     /**
      * Nama kolom VA di scctbill (va / VA), atau null jika belum ada di DB client.
      * Tanpa ini, SELECT scctbill.va memicu 500 di banyak halaman.
@@ -104,6 +132,29 @@ class MultiVa
         }));
     }
 
+    /** Siapkan payload insert/update scctbill agar aman di DB tanpa kolom va. */
+    public static function sanitizeBillPayload(array $payload): array
+    {
+        $vaCol = self::billVaColumn();
+        if ($vaCol === null) {
+            unset($payload['va'], $payload['VA']);
+        } else {
+            $raw = $payload[$vaCol] ?? $payload['va'] ?? $payload['VA'] ?? null;
+            unset($payload['va'], $payload['VA']);
+            if (!self::closeEnabled()) {
+                $payload[$vaCol] = self::OPEN;
+            } else {
+                $payload[$vaCol] = self::normalize($raw) ?? self::OPEN;
+            }
+        }
+
+        if (!self::billHasColumn('isINSTALLABLE')) {
+            unset($payload['isINSTALLABLE']);
+        }
+
+        return $payload;
+    }
+
     public static function openPrefix(): string
     {
         $raw = preg_replace('/\D/', '', (string) config('app.va_open', self::OPEN_PREFIX));
@@ -175,7 +226,11 @@ class MultiVa
 
     public static function resolveFromMaster(object $tagihan): ?string
     {
-        return self::normalize($tagihan->VA ?? $tagihan->va ?? null);
+        if (!self::masterHasVaColumn() || !self::closeEnabled()) {
+            return self::OPEN;
+        }
+
+        return self::normalize($tagihan->VA ?? $tagihan->va ?? null) ?? self::OPEN;
     }
 
     public static function masterOptionText(object $item): string
@@ -214,6 +269,11 @@ class MultiVa
 
     public static function saldoView(string $reffBank): string
     {
+        // Client open-only (Blitar): view utama = v_saldo_va
+        if (!self::closeEnabled()) {
+            return 'v_saldo_va';
+        }
+
         $va = self::normalize($reffBank) ?? self::OPEN;
 
         return "v_saldo_va_multivapertagihan{$va}";
@@ -221,21 +281,129 @@ class MultiVa
 
     public static function transView(string $reffBank): string
     {
+        if (!self::closeEnabled()) {
+            return 'v_trans_saldo';
+        }
+
         $va = self::normalize($reffBank) ?? self::OPEN;
 
         return "v_trans_saldo_multivapertagihan{$va}";
     }
 
-    /** View v_saldo_va_multivapertagihan93 / 94 */
-    public static function saldoQuery(string $reffBank)
+    public static function tableExists(string $table): bool
     {
-        return DB::connection('DATA_MYSQL')->table(self::saldoView($reffBank));
+        static $cache = [];
+
+        if (array_key_exists($table, $cache)) {
+            return $cache[$table];
+        }
+
+        try {
+            $cache[$table] = Schema::connection('DATA_MYSQL')->hasTable($table);
+        } catch (\Throwable $e) {
+            $cache[$table] = false;
+        }
+
+        return $cache[$table];
     }
 
-    /** View v_trans_saldo_multivapertagihan93 / 94 */
+    public static function resolveExistingView(array $candidates): ?string
+    {
+        foreach ($candidates as $name) {
+            $name = trim((string) $name);
+            if ($name !== '' && self::tableExists($name)) {
+                return $name;
+            }
+        }
+
+        return null;
+    }
+
+    /** View saldo: v_saldo_va (open-only) / multiVA 93-94 / multiVA 1-2 / fallback. */
+    public static function saldoQuery(string $reffBank)
+    {
+        $view = self::resolveExistingView([
+            self::saldoView($reffBank),
+            'v_saldo_va',
+            'v_saldo_va_multivapertagihan93',
+            'v_saldo_va_multivapertagihan1',
+            'v_saldo_va_multivapertagihan94',
+            'v_saldo_va_multivapertagihan2',
+            'v_saldo_virtual_account',
+        ]);
+
+        if ($view) {
+            return DB::connection('DATA_MYSQL')->table($view);
+        }
+
+        return self::fallbackSaldoQuery();
+    }
+
+    /** View transaksi saldo: v_trans_saldo (open-only) / multiVA / fallback. */
     public static function transQuery(string $reffBank)
     {
-        return DB::connection('DATA_MYSQL')->table(self::transView($reffBank));
+        $view = self::resolveExistingView([
+            self::transView($reffBank),
+            'v_trans_saldo',
+            'v_trans_saldo_multivapertagihan93',
+            'v_trans_saldo_multivapertagihan1',
+            'v_trans_saldo_multivapertagihan94',
+            'v_trans_saldo_multivapertagihan2',
+            'v_trans_saldo_va',
+        ]);
+
+        if ($view) {
+            return DB::connection('DATA_MYSQL')->table($view);
+        }
+
+        return self::fallbackTransQuery();
+    }
+
+    /** Fallback Saldo VA tanpa view multi-VA (exclude manual cash 1140000). */
+    public static function fallbackSaldoQuery()
+    {
+        $conn = DB::connection('DATA_MYSQL');
+
+        $agg = $conn->table('sccttran')
+            ->select([
+                'CUSTID',
+                DB::raw('COALESCE(SUM(KREDIT), 0) - COALESCE(SUM(DEBET), 0) AS SALDO'),
+            ])
+            ->where(function ($q) {
+                $q->whereNull('FIDBANK')
+                    ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) = ''")
+                    ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) != ?", ['1140000']);
+            })
+            ->groupBy('CUSTID');
+
+        return $conn->table('scctcust')
+            ->leftJoinSub($agg, 'trx', function ($join) {
+                $join->on('trx.CUSTID', '=', 'scctcust.CUSTID');
+            })
+            ->select([
+                'scctcust.CUSTID as CUSTID',
+                'scctcust.NOCUST as NOCUST',
+                'scctcust.NMCUST as NMCUST',
+                'scctcust.CODE01 as CODE01',
+                'scctcust.CODE02 as CODE02',
+                'scctcust.CODE03 as CODE03',
+                'scctcust.DESC02 as DESC02',
+                'scctcust.DESC03 as DESC03',
+                'scctcust.DESC04 as DESC04',
+                'scctcust.NUM2ND as NUM2ND',
+                DB::raw('COALESCE(trx.SALDO, 0) AS SALDO'),
+            ]);
+    }
+
+    public static function fallbackTransQuery()
+    {
+        return DB::connection('DATA_MYSQL')
+            ->table('sccttran')
+            ->where(function ($q) {
+                $q->whereNull('FIDBANK')
+                    ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) = ''")
+                    ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) != ?", ['1140000']);
+            });
     }
 
     public static function paymentFunction(string $reffBank): string
@@ -298,14 +466,17 @@ class MultiVa
 
     public static function requireFromMaster(mst_tagihan $tagihan): string
     {
-        $raw = trim((string) ($tagihan->VA ?? $tagihan->va ?? ''));
-        if ($raw === '') {
-            throw new RuntimeException(
-                'Jenis tagihan "' . $tagihan->tagihan . '" belum diset VA.'
-            );
+        if (!self::masterHasVaColumn() || !self::closeEnabled()) {
+            return self::OPEN;
         }
 
-        return self::normalize($raw) ?? $raw;
+        $raw = trim((string) ($tagihan->VA ?? $tagihan->va ?? ''));
+        if ($raw === '') {
+            // Open-only / kolom VA kosong → default Open, jangan throw 500.
+            return self::OPEN;
+        }
+
+        return self::normalize($raw) ?? self::OPEN;
     }
 
     public static function custSaldo(string|int|null $custId, string $reffBank): int
@@ -360,6 +531,11 @@ class MultiVa
      */
     public static function prefixFromContext(mixed $va = null, mixed $isInstallment = null, ?string $billName = null): string
     {
+        // Client open-only: semua tagihan pakai prefix Open (752088).
+        if (!self::closeEnabled()) {
+            return self::openPrefix();
+        }
+
         $normalized = self::normalize($va);
         if ($normalized !== null) {
             return self::prefix($normalized);
@@ -367,9 +543,11 @@ class MultiVa
 
         $mst = $billName ? self::masterByBillName($billName) : null;
         if ($mst) {
-            $normalized = self::normalize($mst->VA ?? $mst->va ?? null);
-            if ($normalized !== null) {
-                return self::prefix($normalized);
+            if (self::masterHasVaColumn()) {
+                $normalized = self::normalize($mst->VA ?? $mst->va ?? null);
+                if ($normalized !== null) {
+                    return self::prefix($normalized);
+                }
             }
             if ($isInstallment === null || $isInstallment === '') {
                 $isInstallment = $mst->isINSTALLMENT ?? null;

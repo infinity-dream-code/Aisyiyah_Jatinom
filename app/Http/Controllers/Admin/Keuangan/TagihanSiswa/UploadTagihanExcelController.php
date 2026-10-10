@@ -279,7 +279,7 @@ class UploadTagihanExcelController extends Controller
                 $nominal = (int) $item['nominal'];
                 $va = MultiVa::requireFromMaster($tagihan);
 
-                scctbill::create([
+                scctbill::create(MultiVa::sanitizeBillPayload([
                     'CUSTID' => $siswa->CUSTID,
                     'BILLAC' => $bta,
                     'BILLNM' => $tagihan->tagihan,
@@ -295,7 +295,7 @@ class UploadTagihanExcelController extends Controller
                     'INSTALLMENT' => 0,
                     'isINSTALLABLE' => (int) $tagihan->isINSTALLMENT === 1 ? 1 : 0,
                     'va' => $va,
-                ]);
+                ]));
                 $insertedCount++;
             }
 

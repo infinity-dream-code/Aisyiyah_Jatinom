@@ -208,7 +208,7 @@ class UploadTagihanPMBExcelController extends Controller
 
                 $va = MultiVa::requireFromMaster($tagihan);
 
-                scctbill::create([
+                scctbill::create(MultiVa::sanitizeBillPayload([
                     'CUSTID' => $siswa->CUSTID,
                     'BILLAC' => $bta,
                     'BILLNM' => $tagihan->tagihan,
@@ -224,7 +224,7 @@ class UploadTagihanPMBExcelController extends Controller
                     'INSTALLMENT' => 0,
                     'isINSTALLABLE' => (int) $tagihan->isINSTALLMENT === 1 ? 1 : 0,
                     'va' => $va,
-                ]);
+                ]));
             }
 
             Cache::forget($this->cacheKey);
