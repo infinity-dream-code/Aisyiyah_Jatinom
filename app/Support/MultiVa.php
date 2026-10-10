@@ -17,6 +17,11 @@ class MultiVa
 
     private static ?\Illuminate\Support\Collection $masters = null;
 
+    public static function closeEnabled(): bool
+    {
+        return (bool) config('app.va_close_enabled', false);
+    }
+
     public static function openPrefix(): string
     {
         $raw = preg_replace('/\D/', '', (string) config('app.va_open', self::OPEN_PREFIX));
@@ -26,6 +31,10 @@ class MultiVa
 
     public static function closePrefix(): string
     {
+        if (!self::closeEnabled()) {
+            return self::openPrefix();
+        }
+
         $raw = preg_replace('/\D/', '', (string) config('app.va_close', self::CLOSE_PREFIX));
 
         return $raw !== '' ? $raw : self::CLOSE_PREFIX;
@@ -33,6 +42,10 @@ class MultiVa
 
     public static function prefix(string $reffBank): string
     {
+        if (!self::closeEnabled()) {
+            return self::openPrefix();
+        }
+
         return self::normalize($reffBank) === self::CLOSE
             ? self::closePrefix()
             : self::openPrefix();
@@ -108,6 +121,10 @@ class MultiVa
 
     public static function saldoPageTitle(string $reffBank): string
     {
+        if (!self::closeEnabled()) {
+            return 'Saldo VA';
+        }
+
         return self::normalize($reffBank) === self::CLOSE
             ? 'Saldo VA Close'
             : 'Saldo VA Open';
@@ -342,6 +359,10 @@ class MultiVa
     public static function formatNoVaBoth(mixed $nis): string
     {
         $open = self::formatNoVa($nis, self::OPEN);
+        if (!self::closeEnabled()) {
+            return $open;
+        }
+
         $close = self::formatNoVa($nis, self::CLOSE);
         if ($open !== '' && $close !== '' && $open !== $close) {
             return $open . ' / ' . $close;

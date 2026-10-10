@@ -304,6 +304,7 @@
 <script>
     window.APP_VA_OPEN = @json((string) config('app.va_open', '752088'));
     window.APP_VA_CLOSE = @json((string) config('app.va_close', '752088'));
+    window.APP_VA_CLOSE_ENABLED = @json((bool) config('app.va_close_enabled', false));
     window.APP_VA_PREFIX = window.APP_VA_OPEN;
 </script>
 <script src="{{asset('js/va-format.js')}}?v=20260827-multiva"></script>

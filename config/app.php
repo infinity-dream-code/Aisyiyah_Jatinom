@@ -26,6 +26,8 @@ return [
     'nova' => env('APP_NOVA') ?: env('APP_VA_OPEN', '752088'),
     'va_open' => env('APP_VA_OPEN', '752088'),
     'va_close' => env('APP_VA_CLOSE', '752088'),
+    // Client ini hanya 1 VA (Open). Set true jika nanti ada VA Close.
+    'va_close_enabled' => filter_var(env('APP_VA_CLOSE_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
     'biaya_admin' => env('BIAYA_ADMIN', 0),
     'dummy_seeder' => env('DUMMY_SEEDER',false),
     'demo_mode' => env('DEMO_MODE',false),

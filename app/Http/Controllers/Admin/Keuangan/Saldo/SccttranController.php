@@ -84,8 +84,10 @@ class SccttranController extends Controller
             ->get();
         $data['vaOptions'] = [
             MultiVa::OPEN => MultiVa::optionLabel(MultiVa::OPEN),
-            MultiVa::CLOSE => MultiVa::optionLabel(MultiVa::CLOSE),
         ];
+        if (MultiVa::closeEnabled()) {
+            $data['vaOptions'][MultiVa::CLOSE] = MultiVa::optionLabel(MultiVa::CLOSE);
+        }
         $data['jenisOptions'] = [
             'topup' => 'TOP UP',
             'payment' => 'Payment',

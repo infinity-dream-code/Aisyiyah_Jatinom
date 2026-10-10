@@ -1,6 +1,6 @@
 /**
  * Format No. VA: prefix + NIS (total 16 digit).
- * Open 752088 (VA 93 / cicil). Saat ini hanya 1 VA (Open).
+ * Open 752088 (VA 93). Close hanya jika APP_VA_CLOSE_ENABLED=true.
  */
 (function (window) {
     const DEFAULT_OPEN = '752088';
@@ -9,6 +9,10 @@
 
     function digitsOnly(value) {
         return String(value ?? '').replace(/\D/g, '');
+    }
+
+    function closeEnabled() {
+        return window.APP_VA_CLOSE_ENABLED === true || window.APP_VA_CLOSE_ENABLED === 1 || window.APP_VA_CLOSE_ENABLED === '1';
     }
 
     window.formatNoVA = function (nis, prefix) {
@@ -26,11 +30,17 @@
     };
 
     window.showVAClose = function (nis) {
+        if (!closeEnabled()) {
+            return '';
+        }
         return window.formatNoVA(nis, window.APP_VA_CLOSE || DEFAULT_CLOSE);
     };
 
     window.showVABoth = function (nis) {
         const open = window.showVAOpen(nis);
+        if (!closeEnabled()) {
+            return open;
+        }
         const close = window.showVAClose(nis);
         if (open && close && open !== close) {
             return open + ' / ' + close;

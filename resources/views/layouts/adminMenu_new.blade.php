@@ -119,14 +119,16 @@
                     <ul class="menu-sub">
                         <li class="menu-item {{ Request::is(['admin/keuangan/saldo/saldo-virtual-account*']) ? 'active' : '' }}">
                             <a href="{{ route('admin.keuangan.saldo.saldo-virtual-account.index') }}" class="menu-link">
-                                <div data-i18n="Saldo VA Open">Saldo VA Open</div>
+                                <div data-i18n="Saldo VA">{{ \App\Support\MultiVa::closeEnabled() ? 'Saldo VA Open' : 'Saldo VA' }}</div>
                             </a>
                         </li>
+                        @if(\App\Support\MultiVa::closeEnabled())
                         <li class="menu-item {{ Request::is(['admin/keuangan/saldo/saldo-va-close*']) ? 'active' : '' }}">
                             <a href="{{ route('admin.keuangan.saldo.saldo-va-close.index') }}" class="menu-link">
                                 <div data-i18n="Saldo VA Close">Saldo VA Close</div>
                             </a>
                         </li>
+                        @endif
                     </ul>
                 </li>
                 <li class="menu-item {{ Request::is(['admin/keuangan/hapus-tagihan*']) ? 'active' : '' }}">

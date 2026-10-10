@@ -733,13 +733,17 @@ class ManualPembayaranController extends Controller
             $siswa->NOCUST = $nocust;
             $siswa->save();
 
-            return response()->json([
+            $payload = [
                 'message' => 'Nomor VA berhasil diperbarui',
                 'nocust' => $nocust,
                 'nova' => MultiVa::formatNoVaBoth($nocust),
                 'nova_open' => MultiVa::formatNoVa($nocust, MultiVa::OPEN),
-                'nova_close' => MultiVa::formatNoVa($nocust, MultiVa::CLOSE),
-            ], 200);
+            ];
+            if (MultiVa::closeEnabled()) {
+                $payload['nova_close'] = MultiVa::formatNoVa($nocust, MultiVa::CLOSE);
+            }
+
+            return response()->json($payload, 200);
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Gagal memperbarui nomor VA', 'error' => $e->getMessage()], 422);
         }

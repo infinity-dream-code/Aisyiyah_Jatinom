@@ -476,7 +476,9 @@
                 no: 18,
                 nocust: 48,
                 va_open: 72,
+                @if(\App\Support\MultiVa::closeEnabled())
                 va_close: 72,
+                @endif
                 NUM2ND: 48,
                 nmcust: '*',
                 CODE02: 28,

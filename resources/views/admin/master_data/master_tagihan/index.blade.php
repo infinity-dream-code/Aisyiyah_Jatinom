@@ -123,7 +123,9 @@
                                 <label class="form-label required" for="VA">VA</label>
                                 <select class="form-select" name="VA" id="VA" data-control="select2" required>
                                     <option value="93">93 - Open</option>
+                                    @if(\App\Support\MultiVa::closeEnabled())
                                     <option value="94">94 - Close</option>
+                                    @endif
                                 </select>
                                 <div class="invalid-feedback" role="alert"><strong></strong></div>
                             </div>
@@ -177,7 +179,9 @@
                                 <label class="form-label required" for="edit_VA">VA</label>
                                 <select class="form-select" name="VA" id="edit_VA" data-control="select2" required>
                                     <option value="93">93 - Open</option>
+                                    @if(\App\Support\MultiVa::closeEnabled())
                                     <option value="94">94 - Close</option>
+                                    @endif
                                 </select>
                                 <div class="invalid-feedback" role="alert"><strong></strong></div>
                             </div>

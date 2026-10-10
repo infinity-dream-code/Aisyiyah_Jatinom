@@ -72,19 +72,20 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="{{ \App\Support\MultiVa::closeEnabled() ? 'col-md-6' : 'col-md-12' }}">
                         <div class="mb-5">
                             <label class="form-label" for="saldo_open">
-                                Saldo VA Open (93)
+                                {{ \App\Support\MultiVa::closeEnabled() ? 'Saldo VA Open (93)' : 'Saldo VA (Open)' }}
                             </label>
                             <div class="input-group input-group-merge">
                                 <span class="input-group-text">Rp. </span>
                                 <input readonly type="text" id="saldo_open" name="saldo_open"
-                                       placeholder="Saldo Open"
+                                       placeholder="Saldo VA"
                                        class="form-control"/>
                             </div>
                         </div>
                     </div>
+                    @if(\App\Support\MultiVa::closeEnabled())
                     <div class="col-md-6">
                         <div class="mb-5">
                             <label class="form-label" for="saldo_close">
@@ -98,6 +99,7 @@
                             </div>
                         </div>
                     </div>
+                    @endif
                     <div class="col-12">
                         <div class="mb-5 d-none">
                             <label class="required form-label" for="saldo">
@@ -665,7 +667,9 @@
                         return saldo.toLocaleString('id-ID');
                     };
                     $('#saldo_open').val(formatSaldo(data.saldo_open ?? data.saldo_93 ?? 0));
-                    $('#saldo_close').val(formatSaldo(data.saldo_close ?? data.saldo_94 ?? 0));
+                    if ($('#saldo_close').length) {
+                        $('#saldo_close').val(formatSaldo(data.saldo_close ?? data.saldo_94 ?? 0));
+                    }
                     $('#saldo').val(formatSaldo(data.saldo ?? data.saldo_open ?? 0));
                     Swal.close();
                 }).fail(function (xhr) {

@@ -578,15 +578,19 @@ class SaldoVirtualAccountController extends Controller
     {
         $custId = $request->input('siswa');
         $open = MultiVa::custSaldo($custId, MultiVa::OPEN);
-        $close = MultiVa::custSaldo($custId, MultiVa::CLOSE);
-
-        return response()->json([
+        $payload = [
             'saldo' => $open,
             'saldo_open' => $open,
-            'saldo_close' => $close,
             'saldo_93' => $open,
-            'saldo_94' => $close,
-        ]);
+        ];
+
+        if (MultiVa::closeEnabled()) {
+            $close = MultiVa::custSaldo($custId, MultiVa::CLOSE);
+            $payload['saldo_close'] = $close;
+            $payload['saldo_94'] = $close;
+        }
+
+        return response()->json($payload);
     }
 
     public function transaksiIndex()

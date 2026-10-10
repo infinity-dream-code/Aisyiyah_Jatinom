@@ -77,12 +77,18 @@ class DataSiswaController extends Controller
 
     public function getColumn()
     {
-        return [
+        $columns = [
             ["data" => "select_reset", "name" => "", "searchable" => false, "orderable" => false, "className" => "text-center", "exportable" => false],
             ["data" => null, "name" => "no", "className" => "text-center", "columnType" => "row", "exportable" => true],
             ["data" => "nocust", "name" => "NIS", "searchable" => true, "orderable" => true, "exportable" => true],
-            ["data" => "va_open", "name" => "VA Open", "searchable" => false, "orderable" => false, "exportable" => true],
-            ["data" => "va_close", "name" => "VA Close", "searchable" => false, "orderable" => false, "exportable" => true],
+            ["data" => "va_open", "name" => MultiVa::closeEnabled() ? "VA Open" : "No. VA", "searchable" => false, "orderable" => false, "exportable" => true],
+        ];
+
+        if (MultiVa::closeEnabled()) {
+            $columns[] = ["data" => "va_close", "name" => "VA Close", "searchable" => false, "orderable" => false, "exportable" => true];
+        }
+
+        return array_merge($columns, [
             ["data" => "NUM2ND", "name" => "No Pendaftaran", "searchable" => true, "orderable" => true, "exportable" => true],
             ["data" => "nmcust", "name" => "NAMA", "searchable" => true, "orderable" => true, "exportable" => true],
             ["data" => "CODE02", "name" => "Unit", "searchable" => true, "orderable" => true, "exportable" => true],
@@ -118,7 +124,7 @@ class DataSiswaController extends Controller
                 "buttonClass" => "btn btn-sm btn-warning button-set-status-siswa",
                 "buttonIcon" => "ri-edit-box-line me-2",
             ],
-        ];
+        ]);
     }
 
     public function getData(Request $request)
@@ -240,7 +246,8 @@ class DataSiswaController extends Controller
         $totalRecordsWithFilter = (clone $filteredQuery)->count("CUSTID");
 
         $openPrefix = MultiVa::openPrefix();
-        $closePrefix = MultiVa::closePrefix();
+        $closeEnabled = MultiVa::closeEnabled();
+        $closePrefix = $closeEnabled ? MultiVa::closePrefix() : null;
 
         $records = $filteredQuery
             ->orderBy($columnName, $columnSortOrder)
@@ -248,7 +255,7 @@ class DataSiswaController extends Controller
             ->take($length)
             ->select($select)
             ->get()
-            ->map(function ($item) use ($openPrefix, $closePrefix) {
+            ->map(function ($item) use ($openPrefix, $closePrefix, $closeEnabled) {
                 $row = $item->toArray();
                 $nis = trim((string) ($item->nocust ?? ''));
                 $row["item_id"] = $item->CUSTID;
@@ -256,7 +263,9 @@ class DataSiswaController extends Controller
                 $row["nis"] = $item->nocust;
                 $hasNis = $nis !== '' && $nis !== '-';
                 $row["va_open"] = $hasNis ? scctcust::formatVA($openPrefix, $nis) : '';
-                $row["va_close"] = $hasNis ? scctcust::formatVA($closePrefix, $nis) : '';
+                if ($closeEnabled) {
+                    $row["va_close"] = $hasNis ? scctcust::formatVA($closePrefix, $nis) : '';
+                }
                 $row["no_pendaftaran"] = $item->NUM2ND;
                 $row["nama"] = $item->nmcust;
                 $row["angkatan"] = $item->DESC04;
