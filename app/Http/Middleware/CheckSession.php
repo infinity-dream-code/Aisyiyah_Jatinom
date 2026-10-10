@@ -4,21 +4,22 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Auth;
 
 class CheckSession
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Soft session check: rely on Auth (restored via PersistentLogin).
+     * Never force-logout or show "sesi habis"; only gate unauthenticated users.
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next)
     {
-        if (!session()->has('user')) {
-            return redirect()->route('login');
+        if (Auth::check()) {
+            return $next($request);
         }
 
-        return $next($request);
+        return $request->expectsJson() || $request->ajax()
+            ? response()->json(['message' => 'Unauthenticated.', 'csrf_token' => csrf_token()], 401)
+            : redirect()->guest(route('login'));
     }
 }

@@ -35,7 +35,8 @@ class Handler extends ExceptionHandler
 
             $csrf = $this->safeCsrfToken();
 
-            if ($request->expectsJson() || $request->ajax()) {
+            // Never show Page Expired / 500 splash for transient CSRF/session/DB blips.
+            if ($request->expectsJson() || $request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'message' => 'Silakan coba lagi.',
                     'csrf_token' => $csrf,
@@ -47,6 +48,9 @@ class Handler extends ExceptionHandler
             }
 
             $fallback = url()->previous() ?: url('/admin');
+            if ($fallback === $request->fullUrl() && !$request->boolean('_retry')) {
+                $fallback = url('/admin');
+            }
 
             return redirect()
                 ->to($fallback)

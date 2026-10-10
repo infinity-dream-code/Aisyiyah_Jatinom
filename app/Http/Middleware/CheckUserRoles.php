@@ -17,9 +17,9 @@ class CheckUserRoles
     public function handle(Request $request, Closure $next, ...$params)
     {
         if (!Auth::check()) {
-            return $request->expectsJson()
-                ? response()->json(['message' => 'Unauthenticated.'], 401)
-                : redirect()->guest('login');
+            return $request->expectsJson() || $request->ajax()
+                ? response()->json(['message' => 'Unauthenticated.', 'csrf_token' => csrf_token()], 401)
+                : redirect()->guest(route('login'));
         }
         $user = Auth::user();
 

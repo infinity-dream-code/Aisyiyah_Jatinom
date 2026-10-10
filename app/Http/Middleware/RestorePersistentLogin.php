@@ -21,15 +21,19 @@ class RestorePersistentLogin
             return $next($request);
         }
 
-        $user = PersistentLogin::userFromCookie($request->cookie(PersistentLogin::COOKIE));
+        $user = PersistentLogin::userFromCookie(PersistentLogin::rawFromRequest());
         if ($user) {
-            Auth::login($user);
+            // Restore without session()->migrate() to avoid concurrent
+            // request races (keep-alive + menu navigation) that cause 419/login redirects.
+            $guard = Auth::guard();
+            $guard->setUser($user);
+            $request->session()->put($guard->getName(), $user->getAuthIdentifier());
             PersistentLogin::queue($user);
 
             return $next($request);
         }
 
-        if ($request->cookie(PersistentLogin::COOKIE)) {
+        if ($request->cookie(PersistentLogin::COOKIE) || $request->cookie(PersistentLogin::LEGACY_COOKIE)) {
             PersistentLogin::forget();
         }
 

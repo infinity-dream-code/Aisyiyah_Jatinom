@@ -7,7 +7,10 @@ use Illuminate\Support\Facades\Cookie;
 
 class PersistentLogin
 {
-    public const COOKIE = 'arruhama_stay';
+    public const COOKIE = 'aisyiyah_jatinom';
+
+    /** Legacy cookie name from previous client branding. */
+    public const LEGACY_COOKIE = 'arruhama_stay';
 
     public static function queue(CyberKey $user): void
     {
@@ -27,11 +30,32 @@ class PersistentLogin
             false,
             'lax'
         ));
+
+        // Drop legacy cookie if still present after rebrand.
+        if (request()->cookie(self::LEGACY_COOKIE)) {
+            Cookie::queue(Cookie::forget(self::LEGACY_COOKIE));
+        }
     }
 
     public static function forget(): void
     {
         Cookie::queue(Cookie::forget(self::COOKIE));
+        Cookie::queue(Cookie::forget(self::LEGACY_COOKIE));
+    }
+
+    public static function rawFromRequest(): ?string
+    {
+        $raw = request()->cookie(self::COOKIE);
+        if (is_string($raw) && $raw !== '') {
+            return $raw;
+        }
+
+        $legacy = request()->cookie(self::LEGACY_COOKIE);
+        if (is_string($legacy) && $legacy !== '') {
+            return $legacy;
+        }
+
+        return null;
     }
 
     public static function userFromCookie(?string $raw): ?CyberKey

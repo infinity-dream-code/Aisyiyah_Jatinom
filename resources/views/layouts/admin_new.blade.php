@@ -467,20 +467,27 @@
         });
 
         $(document).ajaxError(function (event, jqXHR, ajaxSettings) {
-            if (jqXHR.status === 419 && !ajaxSettings._retried) {
-                ajaxSettings._retried = true;
-                window.pingKeepAlive(function (data) {
-                    if (data && data.csrf_token) {
-                        if (ajaxSettings.headers) {
-                            ajaxSettings.headers['X-CSRF-TOKEN'] = data.csrf_token;
-                        }
-                        if (typeof ajaxSettings.data === 'string' && ajaxSettings.data.indexOf('_token=') !== -1) {
-                            ajaxSettings.data = ajaxSettings.data.replace(/_token=[^&]*/, '_token=' + encodeURIComponent(data.csrf_token));
-                        }
-                        $.ajax(ajaxSettings);
-                    }
-                });
+            if ((jqXHR.status !== 419 && jqXHR.status !== 401) || ajaxSettings._retried) {
+                return;
             }
+            // Silent recover: refresh CSRF / session, retry once. No login redirect, no sesi alert.
+            ajaxSettings._retried = true;
+            window.pingKeepAlive(function (data) {
+                if (!data || !data.csrf_token) {
+                    return;
+                }
+                applyCsrfToken(data.csrf_token);
+                ajaxSettings.headers = ajaxSettings.headers || {};
+                ajaxSettings.headers['X-CSRF-TOKEN'] = data.csrf_token;
+                if (typeof ajaxSettings.data === 'string' && ajaxSettings.data.indexOf('_token=') !== -1) {
+                    ajaxSettings.data = ajaxSettings.data.replace(/_token=[^&]*/, '_token=' + encodeURIComponent(data.csrf_token));
+                } else if (ajaxSettings.data && typeof FormData !== 'undefined' && ajaxSettings.data instanceof FormData) {
+                    ajaxSettings.data.set('_token', data.csrf_token);
+                } else if (ajaxSettings.data && typeof ajaxSettings.data === 'object') {
+                    ajaxSettings.data._token = data.csrf_token;
+                }
+                $.ajax(ajaxSettings);
+            });
         });
 
         let backToTopButton = document.getElementById('backToTopBtn');
