@@ -458,6 +458,10 @@ class MultiVa
 
     public static function resolveFromBill(object $bill): ?string
     {
+        if (!self::closeEnabled()) {
+            return self::OPEN;
+        }
+
         return self::vaForBillName(
             $bill->BILLNM ?? null,
             $bill->va ?? $bill->VA ?? null
