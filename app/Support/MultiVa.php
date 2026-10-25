@@ -192,10 +192,10 @@ class MultiVa
         }
 
         $digits = preg_replace('/\D/', '', $raw);
-        if (in_array($digits, array_merge([self::OPEN, self::openPrefix()], self::LEGACY_OPEN_PREFIXES), true)) {
+        if (in_array($digits, array_merge([self::OPEN, '1', self::openPrefix()], self::LEGACY_OPEN_PREFIXES), true)) {
             return self::OPEN;
         }
-        if (in_array($digits, array_merge([self::CLOSE, self::closePrefix()], self::LEGACY_CLOSE_PREFIXES), true)) {
+        if (in_array($digits, array_merge([self::CLOSE, '2', self::closePrefix()], self::LEGACY_CLOSE_PREFIXES), true)) {
             return self::CLOSE;
         }
 
@@ -406,19 +406,26 @@ class MultiVa
             });
     }
 
-    public static function paymentFunction(string $reffBank): string
+    /**
+     * Suffix stored function Blitar: Open=1, Close=2.
+     * Client lama memakai 93/94 di nama function.
+     */
+    public static function routineSuffix(string $reffBank): string
     {
-        $va = self::normalize($reffBank) ?? self::OPEN;
-
-        return "BuilderPaymentBill_MultiVAPerTagihan{$va}";
+        return self::normalize($reffBank) === self::CLOSE ? '2' : '1';
     }
 
-    /** Nama lama sebelum rename (salah copas _BankBayar_). */
+    public static function paymentFunction(string $reffBank): string
+    {
+        return 'BuilderPaymentBill_MultiVAPerTagihan' . self::routineSuffix($reffBank);
+    }
+
+    /** Nama lama (client 93/94) kalau function 1/2 belum ada. */
     public static function paymentFunctionLegacy(string $reffBank): string
     {
         $va = self::normalize($reffBank) ?? self::OPEN;
 
-        return "BuilderPaymentBill_BankBayar_MultiVAPerTagihan{$va}";
+        return "BuilderPaymentBill_MultiVAPerTagihan{$va}";
     }
 
     public static function cashPaymentFunction(): string
