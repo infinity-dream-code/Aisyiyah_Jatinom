@@ -151,37 +151,49 @@ class ManualPembayaranController extends Controller
                 ->tap(fn ($q) => SchoolScope::apply($q, 'scctcust'))
                 ->when($tahun_pelajaran && $tahun_pelajaran != 'all', function ($query) use ($tahun_pelajaran) {
                     return $query->where('scctbill.BTA', '=', $tahun_pelajaran);
-                })
-            ->groupBy('scctbill.AA');
+                });
 
-            $totalRecords = Cache::remember('total_tagihan_manual_bayar', 600, function () use ($query) {
-                return $query->select('count(*) as allcount')->count();
-            });
+            try {
+                $totalRecords = (clone $query)->count();
 
-            $records = $query
-                ->select($select)
-                ->orderBy('scctbill.FUrutan', 'asc')
-                ->get()
-                ->map(function ($item) {
-                    $item->item_id = $item->AA;
-                    $item->nocust = $item->NOCUST;
-                    $item->nmcust = $item->NMCUST;
-                    $item->kelas_label = trim(($item->DESC02 ?? '') . ' ' . ($item->DESC03 ?? ''));
-                    $nis = $item->NOCUST;
-                    $vaSource = ($nis && $nis !== '-') ? $nis : $item->NUM2ND;
-                    $item->NOVA = $vaSource
-                        ? MultiVa::formatNoVaFromBill($vaSource, $item)
-                        : '-';
-                    $item->PAYMENTLEFT = $this->resolvePaymentLeft($item);
-                    $item->sisa_bayar = $item->PAYMENTLEFT;
-                    $item->can_cicil = mst_tagihan::canInstallment($item->BILLNM) ? 1 : 0;
-                    $item->FIDBANK = MetodeBayarHelper::resolveDisplayFidBank(
-                        $item->FIDBANK !== null ? (string) $item->FIDBANK : null,
-                        $item->NOREFF !== null ? (string) $item->NOREFF : null
-                    );
-                    unset($item->AA);
-                    return $item;
-                })->toArray();
+                $records = $query
+                    ->select($select)
+                    ->orderBy('scctbill.FUrutan', 'asc')
+                    ->get()
+                    ->map(function ($item) {
+                        $item->item_id = $item->AA;
+                        $item->nocust = $item->NOCUST;
+                        $item->nmcust = $item->NMCUST;
+                        $item->kelas_label = trim(($item->DESC02 ?? '') . ' ' . ($item->DESC03 ?? ''));
+                        $nis = $item->NOCUST;
+                        $vaSource = ($nis && $nis !== '-') ? $nis : $item->NUM2ND;
+                        $item->NOVA = $vaSource
+                            ? MultiVa::formatNoVaFromBill($vaSource, $item)
+                            : '-';
+                        $item->PAYMENTLEFT = $this->resolvePaymentLeft($item);
+                        $item->sisa_bayar = $item->PAYMENTLEFT;
+                        $item->can_cicil = mst_tagihan::canInstallment($item->BILLNM) ? 1 : 0;
+                        $item->FIDBANK = MetodeBayarHelper::resolveDisplayFidBank(
+                            $item->FIDBANK !== null ? (string) $item->FIDBANK : null,
+                            $item->NOREFF !== null ? (string) $item->NOREFF : null
+                        );
+                        unset($item->AA);
+                        return $item;
+                    })->toArray();
+            } catch (Throwable $e) {
+                Log::error('manual-pembayaran.get-data.failed', [
+                    'siswa' => $request->siswa,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return response()->json([
+                    'draw' => intval($draw),
+                    'recordsTotal' => 0,
+                    'recordsFiltered' => 0,
+                    'data' => [],
+                    'message' => 'Gagal memuat tagihan siswa.',
+                ]);
+            }
         }
 
         $response = array(

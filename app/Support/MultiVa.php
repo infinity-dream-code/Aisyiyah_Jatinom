@@ -112,6 +112,23 @@ class MultiVa
         return $cache[$column];
     }
 
+    public static function custHasColumn(string $column): bool
+    {
+        static $cache = [];
+
+        if (array_key_exists($column, $cache)) {
+            return $cache[$column];
+        }
+
+        try {
+            $cache[$column] = Schema::connection('DATA_MYSQL')->hasColumn('scctcust', $column);
+        } catch (\Throwable $e) {
+            $cache[$column] = false;
+        }
+
+        return $cache[$column];
+    }
+
     /** Buang select kolom VA / isINSTALLABLE jika belum ada di DB (hindari 500). */
     public static function filterBillSelect(array $select): array
     {
@@ -299,7 +316,9 @@ class MultiVa
         }
 
         try {
-            $cache[$table] = Schema::connection('DATA_MYSQL')->hasTable($table);
+            $schema = Schema::connection('DATA_MYSQL');
+            $cache[$table] = $schema->hasTable($table)
+                || (method_exists($schema, 'hasView') && $schema->hasView($table));
         } catch (\Throwable $e) {
             $cache[$table] = false;
         }
@@ -376,23 +395,20 @@ class MultiVa
             })
             ->groupBy('CUSTID');
 
+        $custCols = ['CUSTID', 'NOCUST', 'NMCUST', 'CODE01', 'CODE02', 'CODE03', 'DESC02', 'DESC03', 'DESC04', 'NUM2ND'];
+        $select = [];
+        foreach ($custCols as $col) {
+            if (self::custHasColumn($col)) {
+                $select[] = "scctcust.{$col} as {$col}";
+            }
+        }
+        $select[] = DB::raw('COALESCE(trx.SALDO, 0) AS SALDO');
+
         return $conn->table('scctcust')
             ->leftJoinSub($agg, 'trx', function ($join) {
                 $join->on('trx.CUSTID', '=', 'scctcust.CUSTID');
             })
-            ->select([
-                'scctcust.CUSTID as CUSTID',
-                'scctcust.NOCUST as NOCUST',
-                'scctcust.NMCUST as NMCUST',
-                'scctcust.CODE01 as CODE01',
-                'scctcust.CODE02 as CODE02',
-                'scctcust.CODE03 as CODE03',
-                'scctcust.DESC02 as DESC02',
-                'scctcust.DESC03 as DESC03',
-                'scctcust.DESC04 as DESC04',
-                'scctcust.NUM2ND as NUM2ND',
-                DB::raw('COALESCE(trx.SALDO, 0) AS SALDO'),
-            ]);
+            ->select($select);
     }
 
     public static function fallbackTransQuery()
@@ -496,11 +512,31 @@ class MultiVa
             return 0;
         }
 
-        $row = self::saldoQuery($reffBank)
-            ->where('CUSTID', $custId)
-            ->first();
+        $read = static function ($query) use ($custId) {
+            $row = $query->where('CUSTID', $custId)->first();
 
-        return (int) ($row->SALDO ?? 0);
+            return (int) ($row->SALDO ?? $row->saldo ?? 0);
+        };
+
+        try {
+            return $read(self::saldoQuery($reffBank));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('multiva.cust_saldo.view_failed', [
+                'custid' => $custId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        try {
+            return $read(self::fallbackSaldoQuery());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('multiva.cust_saldo.fallback_failed', [
+                'custid' => $custId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 0;
+        }
     }
 
     public static function masters(): \Illuminate\Support\Collection

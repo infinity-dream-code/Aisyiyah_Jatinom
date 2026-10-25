@@ -408,13 +408,13 @@
                         } else if (xhr.status === 419) {
                             errorAlert('Sesi anda telah habis, Silahkan Login Kembali');
                         } else if (xhr.status === 500) {
-                            errorAlert('Tidak dapat terhubung ke server, Silahkan periksa koneksi internet anda');
+                            errorAlert(xhr.responseJSON?.message || 'Gagal memproses pembayaran. Coba lagi, atau hubungi admin jika berulang.');
                         } else if (xhr.status === 403) {
                             errorAlert('Anda tidak memiliki izin untuk mengakses halaman ini');
                         } else if (xhr.status === 404) {
                             errorAlert('Halaman tidak ditemukan');
                         } else {
-                            errorAlert('Terjadi kesalahan, silahkan coba memuat ulang halaman');
+                            errorAlert(xhr.responseJSON?.message || 'Terjadi kesalahan, silahkan coba memuat ulang halaman');
                         }
                     });
                 } catch (e) {
@@ -678,13 +678,13 @@
                     } else if (xhr.status === 419) {
                         errorAlert('Sesi anda telah habis, Silahkan Login Kembali');
                     } else if (xhr.status === 500) {
-                        errorAlert('Tidak dapat terhubung ke server, Silahkan periksa koneksi internet anda');
+                        errorAlert(xhr.responseJSON?.message || 'Gagal memuat saldo VA. Tagihan tetap bisa dicari.');
                     } else if (xhr.status === 403) {
                         errorAlert('Anda tidak memiliki izin untuk mengakses halaman ini');
                     } else if (xhr.status === 404) {
                         errorAlert('Halaman tidak ditemukan');
                     } else {
-                        errorAlert('Terjadi kesalahan, silahkan coba memuat ulang halaman');
+                        errorAlert(xhr.responseJSON?.message || 'Terjadi kesalahan, silahkan coba memuat ulang halaman');
                     }
                 });
             }
