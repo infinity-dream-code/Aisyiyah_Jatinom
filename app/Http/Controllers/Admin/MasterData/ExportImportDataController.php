@@ -518,6 +518,7 @@ class ExportImportDataController extends Controller
             'DESC04' => $thn_aka->thn_aka,
             'DESC05' => $item['alamat'] ?? null,
             'GENUS' => $this->resolveOrtuForDb($item),
+            'NO_WA' => trim((string) ($item['no_wa'] ?? $item['nowa'] ?? $item['no wa'] ?? '')) ?: null,
             'LastUpdate' => Carbon::now(),
         ];
 

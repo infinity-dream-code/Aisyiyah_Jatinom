@@ -469,6 +469,7 @@
                     {data: 'kelas', title: 'Kelas'},
                     {data: 'jenjang', title: 'Jenjang'},
                     {data: 'angkatan', title: 'Angkatan'},
+                    {data: 'keterangan', title: 'Keterangan'},
                 ],
                 columnDefs: [
                     {

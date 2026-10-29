@@ -50,7 +50,7 @@
         </div>
         <div class="card-footer">
             <small class="text-muted">
-                Nama tagihan tidak bisa diubah. VA dan status cicil hanya berlaku untuk tagihan yang dibuat setelah ini.
+                Nama tagihan tidak bisa diubah. Status cicil hanya berlaku untuk tagihan yang dibuat setelah ini.
             </small>
         </div>
     </div>
@@ -119,23 +119,6 @@
                                        placeholder="Contoh: SPP" required>
                                 <div class="invalid-feedback" role="alert"><strong></strong></div>
                             </div>
-                            @if(\App\Support\MultiVa::masterVaSelectable())
-                            <div class="mb-3">
-                                <label class="form-label required" for="VA">VA</label>
-                                <select class="form-select" name="VA" id="VA" data-control="select2" required>
-                                    <option value="93">93 - Open</option>
-                                    <option value="94">94 - Close</option>
-                                </select>
-                                <div class="invalid-feedback" role="alert"><strong></strong></div>
-                            </div>
-                            @else
-                            <div class="mb-3">
-                                <label class="form-label" for="VA">VA</label>
-                                <input type="text" class="form-control" value="93 - Open (752088)" readonly disabled>
-                                <input type="hidden" name="VA" id="VA" value="93">
-                                <small class="text-muted">Client ini hanya memakai VA Open.</small>
-                            </div>
-                            @endif
                             <div class="mb-3">
                                 <label class="form-label required" for="isINSTALLMENT">Status Cicil</label>
                                 <select class="form-select" name="isINSTALLMENT" id="isINSTALLMENT"
@@ -182,23 +165,6 @@
                                        disabled>
                                 <small class="text-muted">Nama tagihan tidak dapat diubah.</small>
                             </div>
-                            @if(\App\Support\MultiVa::masterVaSelectable())
-                            <div class="mb-3">
-                                <label class="form-label required" for="edit_VA">VA</label>
-                                <select class="form-select" name="VA" id="edit_VA" data-control="select2" required>
-                                    <option value="93">93 - Open</option>
-                                    <option value="94">94 - Close</option>
-                                </select>
-                                <div class="invalid-feedback" role="alert"><strong></strong></div>
-                            </div>
-                            @else
-                            <div class="mb-3">
-                                <label class="form-label" for="edit_VA">VA</label>
-                                <input type="text" class="form-control" value="93 - Open (752088)" readonly disabled>
-                                <input type="hidden" name="VA" id="edit_VA" value="93">
-                                <small class="text-muted">Client ini hanya memakai VA Open.</small>
-                            </div>
-                            @endif
                             <div class="mb-3">
                                 <label class="form-label required" for="edit_isINSTALLMENT">Status Cicil</label>
                                 <select class="form-select" name="isINSTALLMENT" id="edit_isINSTALLMENT"
@@ -240,14 +206,6 @@
                 const rowData = DT[`${dtOptions.tableId}`].row(rowEl).data();
                 document.getElementById('edit_tagihan').value = rowData.tagihan || '';
                 document.getElementById('edit_id').value = rowData.item_id || '';
-                const vaValue = String(rowData.VA ?? '').trim();
-                const $editVa = $('#edit_VA');
-                if (vaValue && $editVa.find('option').filter(function () {
-                    return String($(this).val()) === vaValue;
-                }).length === 0) {
-                    $editVa.append(new Option(vaValue, vaValue, true, true));
-                }
-                $editVa.val(vaValue || '').trigger('change');
                 $('#edit_isINSTALLMENT').val(String(Number(rowData.isINSTALLMENT ?? 0) === 1 ? 1 : 0)).trigger('change');
                 modalEdit.show();
             });
@@ -286,7 +244,6 @@
                         .then(data => {
                             document.getElementById(form.id).reset();
                             if (isEdit) {
-                                $('#edit_VA').val('93').trigger('change');
                                 $('#edit_isINSTALLMENT').val('1').trigger('change');
                             }
                             successAlert(data.message);

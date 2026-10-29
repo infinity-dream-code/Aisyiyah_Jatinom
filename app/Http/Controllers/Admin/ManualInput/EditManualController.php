@@ -110,22 +110,24 @@ class EditManualController extends Controller
             return response()->json(['message' => 'Silahkan periksa form anda'], 422);
         }
 
+        $select = MultiVa::filterBillSelect([
+            'AA',
+            'BILLNM',
+            'PAIDST',
+            'PAIDDT',
+            'BILLAC',
+            'FIDBANK',
+            'BILLCD',
+            'FUrutan',
+            'BILLAM',
+            'BILLPAID',
+            'PAYMENTLEFT',
+            'INSTALLMENT',
+            'isINSTALLABLE',
+        ]);
+
         $tagihan = scctbill::query()
-            ->select([
-                'AA',
-                'BILLNM',
-                'PAIDST',
-                'PAIDDT',
-                'BILLAC',
-                'FIDBANK',
-                'BILLCD',
-                'FUrutan',
-                'BILLAM',
-                'BILLPAID',
-                'PAYMENTLEFT',
-                'INSTALLMENT',
-                'isINSTALLABLE',
-            ])
+            ->select($select)
             ->where('CUSTID', $request->siswa)
             ->where('FSTSBolehBayar', 1)
             ->orderBy('FUrutan', 'asc')

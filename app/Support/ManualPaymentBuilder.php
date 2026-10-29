@@ -45,11 +45,15 @@ class ManualPaymentBuilder
                     MultiVa::paymentFunctionLegacy($va)
                 );
             } catch (\Throwable $e) {
-                if (!$this->isSchemaMismatch($e)) {
+                $saldoUi = MultiVa::custSaldo($custId, $va);
+                $canFallback = $this->isSchemaMismatch($e)
+                    || ($this->isInsufficientBalance($e) && $saldoUi >= $nominal);
+                if (!$canFallback) {
                     throw $e;
                 }
-                Log::warning('manual-payment.builder.bill_schema_fallback', [
+                Log::warning('manual-payment.builder.bill_fallback', [
                     'aa' => $aa,
+                    'saldo_ui' => $saldoUi,
                     'error' => $e->getMessage(),
                 ]);
                 $this->payBillViaPhp($tagihan, $nominal);
@@ -257,6 +261,14 @@ class ManualPaymentBuilder
             || str_contains($message, '1054');
     }
 
+    private function isInsufficientBalance(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+
+        return stripos($message, 'Insufficient_Balance') !== false
+            || stripos($message, 'Saldo VA siswa tidak mencukupi') !== false;
+    }
+
     /** Cadangan tunai/bank jika function MySQL gagal karena skema (tanpa kolom VA). */
     private function payCashViaPhp(
         scctbill $tagihan,
@@ -342,12 +354,7 @@ class ManualPaymentBuilder
         $billPaid = (int) ($tagihan->BILLPAID ?? 0);
         $sisa = max(0, $billAm - $billPaid);
 
-        $saldo = (int) DB::connection('DATA_MYSQL')
-            ->table('sccttran')
-            ->where('CUSTID', $custId)
-            ->where('REFFBANK', 'XX')
-            ->selectRaw('COALESCE(SUM(KREDIT - DEBET), 0) AS saldo')
-            ->value('saldo');
+        $saldo = MultiVa::custSaldo($custId, MultiVa::OPEN);
 
         if ($saldo < $nominal) {
             throw new RuntimeException('Saldo VA siswa tidak mencukupi.');
@@ -395,7 +402,7 @@ class ManualPaymentBuilder
                 'BILLID' => $aa,
                 'BILLTARGET' => $tagihan->BILLNM,
                 'INSTALLMENT' => $cicil,
-                'REFFBANK' => 'XX',
+                'REFFBANK' => MultiVa::resolveFromBill($tagihan) ?? MultiVa::OPEN,
             ]));
 
         Log::info('manual-payment.builder.php_bill.ok', [

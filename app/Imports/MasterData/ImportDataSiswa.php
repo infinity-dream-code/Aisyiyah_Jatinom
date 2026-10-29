@@ -48,6 +48,7 @@ class ImportDataSiswa implements WithMultipleSheets, ToCollection, WithHeadingRo
             $rowData['nis'] = $nis !== '' ? $nis : null;
             $rowData['nodaftar'] = $nodaftar !== '' ? $nodaftar : null;
             $rowData['ortu'] = trim((string) ($rowData['ortu'] ?? $rowData['genus'] ?? $rowData['ayah'] ?? '')) ?: null;
+            $rowData['no_wa'] = trim((string) ($rowData['no_wa'] ?? $rowData['nowa'] ?? $rowData['no wa'] ?? '')) ?: null;
 
             $parsedRows[] = $rowData;
         }

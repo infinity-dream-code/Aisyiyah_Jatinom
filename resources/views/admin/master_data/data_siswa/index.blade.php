@@ -48,6 +48,11 @@
             </div>
             <div class="card-header-elements ms-auto">
                 <div class="d-flex justify-content-center justify-content-md-end gap-4">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#modal-create" title="Tambah Siswa">
+                        <span class="ri-add-line me-2"></span>
+                        Tambah Siswa
+                    </button>
                 </div>
             </div>
         </div>

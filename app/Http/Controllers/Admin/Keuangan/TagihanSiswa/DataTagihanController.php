@@ -243,14 +243,6 @@ class DataTagihanController extends Controller
             'Jumlah: Rp ' . number_format($jumlah, 0, ',', '.'),
         ];
 
-        if (!blank($bill['FTGLTagihan'] ?? null)) {
-            try {
-                $lines[] = 'Jatuh Tempo: ' . Carbon::parse($bill['FTGLTagihan'])->format('d/m/Y');
-            } catch (\Throwable) {
-                // tanggal tidak valid → baris jatuh tempo dilewati
-            }
-        }
-
         $lines[] = '';
         $lines[] = 'Mohon untuk segera melakukan pembayaran.';
         $lines[] = 'Terima kasih.';

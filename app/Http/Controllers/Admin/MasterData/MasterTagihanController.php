@@ -35,15 +35,8 @@ class MasterTagihanController extends Controller
         $columns = [
             ['data' => null, 'name' => 'no', 'className' => 'text-center', 'columnType' => 'no'],
             ['data' => 'tagihan', 'name' => 'Nama Tagihan', 'searchable' => true, 'orderable' => true],
+            ['data' => 'isINSTALLMENT_label', 'name' => 'Status Dapat Di Cicil', 'searchable' => false, 'orderable' => true],
         ];
-
-        if (MultiVa::masterVaSelectable()) {
-            $columns[] = ['data' => 'VA', 'name' => 'VA', 'searchable' => true, 'orderable' => true];
-        } else {
-            $columns[] = ['data' => 'VA', 'name' => 'VA', 'searchable' => false, 'orderable' => false];
-        }
-
-        $columns[] = ['data' => 'isINSTALLMENT_label', 'name' => 'Status Dapat Di Cicil', 'searchable' => false, 'orderable' => true];
         $columns[] = [
             'data' => 'edit',
             'name' => '',
@@ -175,10 +168,6 @@ class MasterTagihanController extends Controller
             'isINSTALLMENT' => ['required', 'in:0,1'],
         ];
 
-        if (MultiVa::masterVaSelectable()) {
-            $rules['VA'] = ['required', 'in:93,94'];
-        }
-
         $validator = Validator::make(
             $request->all(),
             $rules,
@@ -208,10 +197,7 @@ class MasterTagihanController extends Controller
             ];
 
             if (MultiVa::masterHasVaColumn()) {
-                $va = MultiVa::masterVaSelectable()
-                    ? (MultiVa::normalize($request->VA) ?? MultiVa::OPEN)
-                    : MultiVa::OPEN;
-                $payload['VA'] = $va;
+                $payload['VA'] = MultiVa::OPEN;
             }
 
             mst_tagihan::create($payload);
@@ -232,10 +218,6 @@ class MasterTagihanController extends Controller
             'isINSTALLMENT' => ['required', 'in:0,1'],
         ];
 
-        if (MultiVa::masterVaSelectable()) {
-            $rules['VA'] = ['required', 'string', 'max:20'];
-        }
-
         $validator = Validator::make(
             $request->all(),
             $rules,
@@ -254,15 +236,6 @@ class MasterTagihanController extends Controller
 
         try {
             DB::connection('DATA_MYSQL')->beginTransaction();
-
-            if (MultiVa::masterHasVaColumn() && MultiVa::masterVaSelectable()) {
-                $vaRaw = trim((string) $request->VA);
-                $va = MultiVa::normalize($vaRaw) ?? $vaRaw;
-                if ($va === '') {
-                    return response()->json(['message' => 'Tipe VA tidak valid'], 422);
-                }
-                $row->VA = $va;
-            }
 
             $row->isINSTALLMENT = (int) $request->isINSTALLMENT === 1 ? 1 : 0;
             $row->save();

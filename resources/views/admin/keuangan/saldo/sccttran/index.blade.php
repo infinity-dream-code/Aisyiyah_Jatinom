@@ -143,23 +143,6 @@
                             </div>
 
                             <div class="mb-3 row">
-                                <label class="col-sm-4 col-form-label form-label" for="filter[va]">
-                                    Kode Produk
-                                </label>
-                                <div class="col">
-                                    <select class="form-select" id="filter[va]" name="filter[va]"
-                                            data-control="select2" data-placeholder="Pilih Kode Produk">
-                                        <option value="all">Semua</option>
-                                        @isset($vaOptions)
-                                            @foreach($vaOptions as $value => $label)
-                                                <option value="{{ $value }}">{{ $label }}</option>
-                                            @endforeach
-                                        @endisset
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="mb-3 row">
                                 <label class="col-sm-4 col-form-label form-label" for="filter[jenis]">
                                     Jenis
                                 </label>

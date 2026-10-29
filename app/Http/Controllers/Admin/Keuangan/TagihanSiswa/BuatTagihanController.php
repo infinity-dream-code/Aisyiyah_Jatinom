@@ -118,6 +118,7 @@ class BuatTagihanController extends Controller
             'scctcust.DESC02',
             'scctcust.DESC03',
             'scctcust.DESC04 as angkatan',
+            'scctcust.STCUST',
         ];
 
         $query = scctcust::query()
@@ -185,6 +186,8 @@ class BuatTagihanController extends Controller
             ->limit(500)
             ->get()
             ->map(function ($item) {
+                $aktif = (int) ($item->STCUST ?? 0) === 1;
+
                 return [
                     'CUSTID' => $item->CUSTID,
                     'nis' => $item->nis,
@@ -195,6 +198,8 @@ class BuatTagihanController extends Controller
                     'kelas' => trim(($item->DESC02 ?? '') . ' ' . ($item->DESC03 ?? '')),
                     'jenjang' => $item->DESC02,
                     'angkatan' => $item->angkatan,
+                    'STCUST' => $aktif ? 1 : 0,
+                    'keterangan' => $aktif ? '' : 'Tidak disimpan (status nonaktif)',
                 ];
             });
 
@@ -310,6 +315,12 @@ class BuatTagihanController extends Controller
             if ($siswas->isEmpty()) return response()->json(['message' => 'Siswa tidak ditemukan'], 422);
             if (count($request->input('siswa')) != $siswas->count()) return response()->json(['message' => 'Jumlah siswa yang dipilih tidak sesuai dengan jumlah data, silahkan muat ulang halaman!'], 422);
 
+            $skippedInactive = $siswas->filter(fn ($siswa) => (int) ($siswa->STCUST ?? 0) !== 1)->count();
+            $siswas = $siswas->filter(fn ($siswa) => (int) ($siswa->STCUST ?? 0) === 1)->values();
+            if ($siswas->isEmpty()) {
+                DB::rollBack();
+                return response()->json(['message' => 'Tidak ada siswa aktif yang dipilih. Siswa nonaktif (status 0) tidak disimpan.'], 422);
+            }
 
             foreach ($siswas as $siswa) {
                 $tagihanSiswaTerbaru = scctbill::where('CUSTID', $siswa->CUSTID)
@@ -360,7 +371,11 @@ class BuatTagihanController extends Controller
                 }
             }
             DB::commit();
-            return response()->json(['message' => 'Tagihan telah dibuat']);
+            $message = 'Tagihan telah dibuat';
+            if ($skippedInactive > 0) {
+                $message .= '. ' . $skippedInactive . ' siswa nonaktif dilewati (tidak disimpan).';
+            }
+            return response()->json(['message' => $message]);
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Error: ' . $e->getMessage(), ['exception' => $e]);

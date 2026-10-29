@@ -454,12 +454,13 @@ class RekapPenerimaanController extends Controller
                             $kelasValues = is_array($val) ? $val : [$val];
                             $kelasPairs = [];
                             foreach ($kelasValues as $kelasValue) {
-                                $kelasPart = explode("~", (string) $kelasValue);
+                                $raw = str_replace('~~', '~', (string) $kelasValue);
+                                $kelasPart = explode("~", $raw);
                                 if (count($kelasPart) == 3) {
                                     $kelasPairs[] = [
-                                        'CODE01' => $kelasPart[0],
+                                        'CODE02' => $kelasPart[0],
                                         'DESC02' => $kelasPart[1],
-                                        'CODE03' => $kelasPart[2],
+                                        'DESC03' => $kelasPart[2],
                                     ];
                                 }
                             }
@@ -516,9 +517,9 @@ class RekapPenerimaanController extends Controller
                                     $query->where(function ($q) use ($kelasPairs) {
                                         foreach ($kelasPairs as $kelasPair) {
                                             $q->orWhere(function ($kelasQuery) use ($kelasPair) {
-                                                $kelasQuery->where('scctcust.CODE02', '=', $kelasPair['CODE01'])
-                                                    ->where('scctcust.DESC02', '=', $kelasPair['DESC02'])
-                                                    ->where('scctcust.CODE03', '=', $kelasPair['CODE03']);
+                                                $kelasQuery->where('scctcust.CODE02', '=', $kelasPair['CODE02'] ?? $kelasPair['CODE01'] ?? '')
+                                                    ->where('scctcust.DESC02', '=', $kelasPair['DESC02'] ?? '')
+                                                    ->where('scctcust.DESC03', '=', $kelasPair['DESC03'] ?? $kelasPair['CODE03'] ?? '');
                                             });
                                         }
                                     });
@@ -718,12 +719,13 @@ class RekapPenerimaanController extends Controller
                         $kelas = $kelasValues;
                         $kelasPairs = [];
                         foreach ($kelasValues as $kelasValue) {
-                            $kelasPart = explode("~", (string) $kelasValue);
+                            $raw = str_replace('~~', '~', (string) $kelasValue);
+                            $kelasPart = explode("~", $raw);
                             if (count($kelasPart) == 3) {
                                 $kelasPairs[] = [
-                                    'CODE01' => $kelasPart[0],
+                                    'CODE02' => $kelasPart[0],
                                     'DESC02' => $kelasPart[1],
-                                    'CODE03' => $kelasPart[2],
+                                    'DESC03' => $kelasPart[2],
                                 ];
                             }
                         }
@@ -830,9 +832,9 @@ class RekapPenerimaanController extends Controller
                                 $query->where(function ($q) use ($kelasPairs) {
                                     foreach ($kelasPairs as $kelasPair) {
                                         $q->orWhere(function ($kelasQuery) use ($kelasPair) {
-                                            $kelasQuery->where('scctcust.CODE02', '=', $kelasPair['CODE01'])
-                                                ->where('scctcust.DESC02', '=', $kelasPair['DESC02'])
-                                                ->where('scctcust.CODE03', '=', $kelasPair['CODE03']);
+                                            $kelasQuery->where('scctcust.CODE02', '=', $kelasPair['CODE02'] ?? $kelasPair['CODE01'] ?? '')
+                                                ->where('scctcust.DESC02', '=', $kelasPair['DESC02'] ?? '')
+                                                ->where('scctcust.DESC03', '=', $kelasPair['DESC03'] ?? $kelasPair['CODE03'] ?? '');
                                         });
                                     }
                                 });

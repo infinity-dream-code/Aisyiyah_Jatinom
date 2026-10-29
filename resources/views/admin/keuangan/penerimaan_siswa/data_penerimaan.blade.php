@@ -327,7 +327,10 @@
                                 <span class="ri-info-card-line me-2"></span>
                                 Cetak Kuitansi
                             </button>
-                            {{-- Cetak Kuitansi Dengan 2000 disembunyikan --}}
+                            <button type="button" class="btn btn-facebook w-100 text-nowrap mb-3" id="cetak-kuitansi-2000">
+                                <span class="ri-info-card-line me-2"></span>
+                                Cetak Kuitansi + 2000
+                            </button>
                             <button type="button" class="btn btn-google-plus w-100 text-nowrap download-pdf-new  mb-3"
                                     id="download-pdf">
                                 <span class="ri-file-pdf-2-line me-2"></span>
@@ -1362,7 +1365,12 @@
                     }
 
                     const billAm = Number(item.BILLAM_TOTAL ?? item.BILLAM ?? 0);
-                    const billPaid = Number(item.BILLAM ?? item.DEBET ?? 0);
+                    const aa = String(item.item_id ?? item.AA ?? '');
+                    const billLogs = paymentLogs.filter(log => String(log.bill_aa ?? '') === aa);
+                    const lastLog = billLogs.find(log => Number(log.debet ?? 0) > 0);
+                    const billPaid = lastLog
+                        ? Number(lastLog.debet ?? 0)
+                        : Number(item.LAST_BAYAR ?? item.DEBET ?? item.BILLAM ?? 0);
                     totalTagihan += billAm;
                     totalBayar += billPaid;
 
@@ -1472,7 +1480,11 @@
 
             document.getElementById('cetak-kuitansi').addEventListener('click', async function (e) {
                 e.preventDefault();
-                await generateKuitansi();
+                await generateKuitansi(false);
+            });
+            document.getElementById('cetak-kuitansi-2000').addEventListener('click', async function (e) {
+                e.preventDefault();
+                await generateKuitansi(true);
             });
 
             document.getElementById('cetak-kartu-siswa').addEventListener('click', async function (e) {

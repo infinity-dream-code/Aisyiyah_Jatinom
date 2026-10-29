@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\MasterData;
 use App\Http\Controllers\Controller;
 use App\Models\mst_kelas;
 use App\Models\mst_sekolah;
+use App\Models\mst_thn_aka;
 use App\Models\scctcust;
 use App\Models\ValidationMessage;
 use App\Support\AndroidLogonFixerProcedure;
@@ -71,6 +72,17 @@ class DataSiswaController extends Controller
             ->orderBy("jenjang")
             ->orderBy("kelas")
             ->get();
+
+        $data["angkatan"] = mst_thn_aka::query()
+            ->whereNotNull("thn_aka")
+            ->where("thn_aka", "!=", "")
+            ->orderBy("thn_aka", "desc")
+            ->get();
+
+        $data["modalLink"] = view("admin.master_data.data_siswa.modal", [
+            "kelas" => $data["kelas"],
+            "angkatan" => $data["angkatan"],
+        ])->render();
 
         return view("admin.master_data.data_siswa.index", $data);
     }
@@ -508,6 +520,86 @@ class DataSiswaController extends Controller
 
             return response()->json(
                 ["message" => "Gagal Mengubah Status Siswa!", "error" => $e->getMessage()],
+                422,
+            );
+        }
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make(
+            $request->all(),
+            [
+                "nis" => ["required", "string", "max:20"],
+                "nama" => ["required", "string", "max:255"],
+                "id_kelas" => ["required"],
+                "id_thn_aka" => ["required"],
+                "no_pendaftaran" => ["nullable", "string", "max:20"],
+                "nowa" => ["nullable", "string", "max:50"],
+                "no_wa" => ["nullable", "string", "max:50"],
+                "jk" => ["nullable"],
+                "nama_ortu" => ["nullable", "string", "max:255"],
+                "alamat" => ["nullable", "string", "max:255"],
+            ],
+            ValidationMessage::messages(),
+            ValidationMessage::attributes(),
+        );
+
+        if ($validator->fails()) {
+            return response()->json(
+                ["message" => $validator->errors()->first(), "errors" => $validator->errors()],
+                422,
+            );
+        }
+
+        $nis = trim((string) $request->input("nis"));
+        if (scctcust::where("NOCUST", $nis)->exists()) {
+            return response()->json(["message" => "Siswa dengan NIS {$nis} sudah ada"], 422);
+        }
+
+        $kelas = mst_kelas::find($request->input("id_kelas"));
+        $thnAka = mst_thn_aka::find($request->input("id_thn_aka"));
+        if (!$kelas || !$thnAka) {
+            return response()->json(["message" => "Kelas atau angkatan tidak valid"], 422);
+        }
+
+        $sekolah = mst_sekolah::query()
+            ->when($this->unitScope, fn ($q) => $q->where("CODE01", $this->unitScope))
+            ->when(!$this->unitScope && $kelas->kelompok, fn ($q) => $q->where("CODE01", $kelas->kelompok))
+            ->orderBy("CODE01")
+            ->first();
+
+        $noWa = trim((string) ($request->input("no_wa") ?: $request->input("nowa") ?: ""));
+
+        try {
+            DB::connection("DATA_MYSQL")->beginTransaction();
+            scctcust::create([
+                "CUSTID" => scctcust::nextCustId(),
+                "NOCUST" => $nis,
+                "NMCUST" => strtoupper(trim((string) $request->input("nama"))),
+                "NUM2ND" => $request->input("no_pendaftaran") ?: "-",
+                "STCUST" => 1,
+                "CODE01" => $sekolah->CODE01 ?? $this->unitScope ?? $kelas->kelompok,
+                "DESC01" => $sekolah->DESC01 ?? null,
+                "CODE02" => $kelas->unit,
+                "DESC02" => $kelas->jenjang,
+                "CODE03" => $kelas->id,
+                "DESC03" => $kelas->kelas,
+                "CODE04" => $request->input("jk"),
+                "DESC04" => $thnAka->thn_aka,
+                "DESC05" => $request->input("alamat") ?: null,
+                "GENUS" => $request->input("nama_ortu") ?: null,
+                "NO_WA" => $noWa !== "" ? $noWa : null,
+                "LastUpdate" => date("Y-m-d H:i:s"),
+            ]);
+            DB::connection("DATA_MYSQL")->commit();
+
+            return response()->json(["message" => "Data siswa berhasil disimpan."], 200);
+        } catch (\Throwable $e) {
+            DB::connection("DATA_MYSQL")->rollBack();
+
+            return response()->json(
+                ["message" => "Gagal menyimpan data siswa.", "error" => $e->getMessage()],
                 422,
             );
         }

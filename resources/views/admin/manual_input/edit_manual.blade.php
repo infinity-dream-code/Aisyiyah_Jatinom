@@ -44,12 +44,20 @@
 
         <div class="card-body">
             <fieldset class="form-fieldset">
-                <div class="col-12 mb-3">
-                    <label class="form-label" for="siswa">Siswa</label>
-                    <select class="form-select" id="siswa" name="siswa"
-                            data-control="select2-ajax-siswa"
-                            data-placeholder="Masukkan NIS / No. Pendaftaran / Nama Siswa">
-                    </select>
+                <div class="row g-2 align-items-end">
+                    <div class="col">
+                        <label class="form-label" for="siswa">Siswa</label>
+                        <select class="form-select" id="siswa" name="siswa"
+                                data-control="select2-ajax-siswa"
+                                data-placeholder="Masukkan NIS / No. Pendaftaran / Nama Siswa">
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-primary" id="btn-cari-siswa">
+                            <span class="ri-search-line me-2"></span>
+                            Cari
+                        </button>
+                    </div>
                 </div>
             </fieldset>
         </div>
@@ -67,8 +75,8 @@
                 <div class="col-12">
                     <div class="card-datatable table-responsive text-nowrap px-5">
                         <div class="card-header">
-                            TAGIHAN YANG TAMPIL DI BANK
-                            <small class="text-muted d-block">Tagihan belum pernah dibayar (cicilan = 0)</small>
+                            TAGIHAN BELUM LUNAS
+                            <small class="text-muted d-block">Termasuk tagihan cicilan yang belum lunas</small>
                         </div>
                         <div class="col-12">
                             <table class="table table-sm table-bordered table-hover"
@@ -366,7 +374,7 @@
 
                 if (paidSt === 1) {
                     acc.paid.push(item);
-                } else if (billPaid === 0 && installmentPaid === 0) {
+                } else {
                     acc.unpaid.push(item);
                 }
                 return acc;
@@ -536,6 +544,16 @@
                     {data: 'AA'},
                     {data: 'BILLNM', title: 'NAMA TAGIHAN'},
                     {
+                        data: 'PAIDST',
+                        title: 'STATUS',
+                        render: function (data, type, row) {
+                            const paid = Number(row.BILLPAID ?? 0);
+                            if (Number(data ?? 0) === 1) return 'Lunas';
+                            if (paid > 0) return 'Cicilan';
+                            return 'Belum bayar';
+                        }
+                    },
+                    {
                         data: 'BILLAM',
                         title: 'JUMLAH',
                         className: 'text-end',
@@ -567,7 +585,7 @@
                 ],
                 language: {
                     ...languageData,
-                    emptyTable: "Tidak ada tagihan yang belum pernah dibayar"
+                    emptyTable: "Tidak ada tagihan yang belum lunas"
                 },
 
                 paging: true,
@@ -576,7 +594,7 @@
                 searching: false,
                 lengthChange: false,
                 pageLength: 10,
-                order: [[4, 'asc']],
+                order: [[5, 'asc']],
                 scrollX: true,
             });
 
@@ -663,6 +681,15 @@
                 tableSiswa.clear().draw();
                 tableTagihan.clear().draw();
                 tableTagihanDibayar.clear().draw();
+            });
+
+            document.getElementById('btn-cari-siswa').addEventListener('click', function () {
+                const siswa = $('#siswa').val();
+                if (!siswa) {
+                    warningAlert('Silahkan pilih siswa terlebih dahulu');
+                    return;
+                }
+                loadSiswaByCustId(siswa);
             });
         });
 

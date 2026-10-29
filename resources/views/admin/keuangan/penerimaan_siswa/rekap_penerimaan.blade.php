@@ -9,6 +9,10 @@
         .select2-container--default .select2-results__option[aria-disabled=true] {
             display: none;
         }
+        #rekapForm .select2-container {
+            width: 100% !important;
+            display: block;
+        }
     </style>
 @endsection
 @section('content')
@@ -60,7 +64,7 @@
             <form id="rekapForm">
                 <fieldset class="form-fieldset">
                     <div class="row">
-                        <div class="col-lg-6">
+                        <div class="col-md-6">
                             <div class="mb-5">
                                 <label class="form-label" for="dari-tanggal">Tanggal Transaksi <span
                                         class="text-warning">*</span>(tanggal-bulan-tahun - tanggal-bulan-tahun)</label>
@@ -159,8 +163,8 @@
                                        name="filter[periode_akhir]">
                             </div>
                         </div>
-                        <div class="col">
-                            <div class="col mb-5 d-none">
+                        <div class="col-md-6">
+                            <div class="mb-5 d-none">
                                 <label class="form-label" for="filter[angkatan]]">
                                     Tahun Siswa
                                 </label>
@@ -179,7 +183,7 @@
                                     @endisset
                                 </select>
                             </div>
-                            <div class="col mb-5">
+                            <div class="mb-5">
                                 <label class="form-label" for="filter[unit]">
                                     Sekolah
                                 </label>
@@ -197,7 +201,7 @@
                                     @endisset
                                 </select>
                             </div>
-                            <div class="col mb-5">
+                            <div class="mb-5">
                                 <label class="form-label" for="filter[kelas]">
                                     Kelas
                                 </label>
@@ -207,8 +211,8 @@
                                     @isset($kelas)
                                         @foreach($kelas as $item)
                                             <option
-                                                value="{{$item->kelompok ?? $item->unit}}~{{$item->jenjang}}~{{$item->id ?? $item->kelas}}"
-                                                data-group="{{$item->kelompok ?? $item->unit}}">
+                                                value="{{$item->unit}}~~{{$item->jenjang}}~~{{$item->kelas}}"
+                                                data-group="{{$item->unit}}">
                                                 {{$item->unit}} - {{$item->jenjang}} {{$item->kelas}}
                                             </option>
                                         @endforeach
@@ -217,7 +221,7 @@
                                     @endisset
                                 </select>
                             </div>
-                            <div class="col mb-5">
+                            <div class="mb-5">
                                 <label class="form-label" for="filter[siswa]">
                                     NIS
                                 </label>
@@ -385,8 +389,9 @@
                 select2.each(function () {
                     let $this = $(this);
                     // select2Focus($this);
-                    $this.wrap('<div class="position-relative"></div>').select2({
+                    $this.select2({
                         placeholder: 'Select value',
+                        width: '100%',
                         dropdownParent: $this.parent()
                     });
                 });

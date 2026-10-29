@@ -193,7 +193,7 @@
                         dataReFilter(dtOptions.tableId);
                     });
                     $('#btn-cari-saldo').on('click', function () {
-                        $(`#${dtOptions.formId} [name="filter[saldo_positif]"]`).val('1');
+                        $(`#${dtOptions.formId} [name="filter[saldo_positif]"]`).val('');
                         dataReFilter(dtOptions.tableId);
                     });
                     filterForm.on('reset', function (e) {
