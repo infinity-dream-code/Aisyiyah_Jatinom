@@ -74,6 +74,7 @@ Route::prefix("admin")
                 ->group(function () {
                     Route::get("get-data", "getData")->name("get-data");
                     Route::get("get-column", "getColumn")->name("get-column");
+                    Route::get("template", "downloadTemplate")->name("template");
                     Route::post("validate-data", "validateData")->name("validate-data");
                     Route::get("clear-data", "clearData")->name("clear-data");
                     Route::resource("", \App\Http\Controllers\Admin\MasterData\ExportImportDataController::class)->parameters(["" => "id"]);

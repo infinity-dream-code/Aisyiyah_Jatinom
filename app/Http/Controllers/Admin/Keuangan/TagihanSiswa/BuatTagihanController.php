@@ -199,7 +199,7 @@ class BuatTagihanController extends Controller
                     'jenjang' => $item->DESC02,
                     'angkatan' => $item->angkatan,
                     'STCUST' => $aktif ? 1 : 0,
-                    'keterangan' => $aktif ? '' : 'Tidak disimpan (status nonaktif)',
+                    'keterangan' => $aktif ? 'Dapat disimpan' : 'Tidak disimpan (status nonaktif)',
                 ];
             });
 

@@ -332,7 +332,7 @@ class ManualPaymentBuilder
                 'BILLID' => $aa,
                 'BILLTARGET' => $tagihan->BILLNM,
                 'INSTALLMENT' => $cicil,
-                'REFFBANK' => MultiVa::routineSuffix(MultiVa::OPEN),
+                'REFFBANK' => MultiVa::storedReffBank(),
             ]));
 
         $this->insertSmTopup($custId, $nominal, $userId, $aa);
@@ -402,7 +402,7 @@ class ManualPaymentBuilder
                 'BILLID' => $aa,
                 'BILLTARGET' => $tagihan->BILLNM,
                 'INSTALLMENT' => $cicil,
-                'REFFBANK' => MultiVa::resolveFromBill($tagihan) ?? MultiVa::OPEN,
+                'REFFBANK' => MultiVa::storedReffBank(),
             ]));
 
         Log::info('manual-payment.builder.php_bill.ok', [

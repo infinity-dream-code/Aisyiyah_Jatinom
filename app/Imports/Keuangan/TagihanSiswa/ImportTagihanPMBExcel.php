@@ -31,6 +31,10 @@ class ImportTagihanPMBExcel implements ToCollection, WithHeadingRow
                     $rowData['status'] = 0;
                     if (!empty($status_ket)) $status_ket .= ', ';
                     $status_ket .= "Nomor Pendaftaran : {$rowData['nodaftar']} tidak ditemukan";
+                } elseif ((int) ($checkData->STCUST ?? 0) !== 1) {
+                    $rowData['status'] = 0;
+                    if (!empty($status_ket)) $status_ket .= ', ';
+                    $status_ket .= 'Siswa nonaktif (STCUST=0), tidak disimpan';
                 }
             }
 

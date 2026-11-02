@@ -422,6 +422,14 @@ class MultiVa
             });
     }
 
+    /** Kode REFFBANK yang disimpan di sccttran (Blitar: 88 dari prefix 752088). */
+    public static function storedReffBank(): string
+    {
+        $last = substr(self::openPrefix(), -2);
+
+        return $last !== '' ? $last : '88';
+    }
+
     /**
      * Suffix stored function Blitar: Open=1, Close=2.
      * Client lama memakai 93/94 di nama function.

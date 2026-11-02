@@ -842,7 +842,7 @@
                 if (!rowData.NO_WA) {
                     warningAlert('No WA siswa belum diisi. Silakan pilih kontak tujuan di WhatsApp.');
                 }
-                window.open(rowData.WA_URL, '_blank');
+                window.open(rowData.WA_URL, 'sikeu_wa');
             }
         });
 

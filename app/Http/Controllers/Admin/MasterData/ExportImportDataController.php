@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\MasterData;
 
+use App\Exports\ImportDataSiswaTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Imports\MasterData\ImportDataSiswa;
 use App\Models\mst_kelas;
@@ -45,6 +46,14 @@ class ExportImportDataController extends Controller
         return view('admin.master_data.export_import_data.index', $data);
     }
 
+    public function downloadTemplate()
+    {
+        return Excel::download(
+            new ImportDataSiswaTemplateExport(),
+            'TEMPLATE MENU UPLOAD DATA SISWA.xlsx'
+        );
+    }
+
     public function getColumn()
     {
         return [
@@ -62,6 +71,7 @@ class ExportImportDataController extends Controller
             ['data' => 'gender', 'name' => 'Jenis Kelamin', 'searchable' => false, 'orderable' => false],
             ['data' => 'ortu', 'name' => 'Ortu / Wali', 'searchable' => false, 'orderable' => false],
             ['data' => 'alamat', 'name' => 'Alamat', 'searchable' => false, 'orderable' => false],
+            ['data' => 'no_wa', 'name' => 'No WA', 'searchable' => false, 'orderable' => false],
         ];
     }
 
@@ -131,6 +141,7 @@ class ExportImportDataController extends Controller
                 'gender' => $item['gender'] ?? null,
                 'ortu' => $item['ortu'] ?? $item['genus'] ?? null,
                 'alamat' => $item['alamat'] ?? null,
+                'no_wa' => $item['no_wa'] ?? $item['nowa'] ?? $item['no wa'] ?? null,
                 'status' => $item['status'] ?? 0,
                 'keterangan' => $item['keterangan'],
             ];

@@ -476,8 +476,10 @@
                         targets: 0,
                         searchable: false,
                         orderable: false,
-                        render: function (data) {
-                            return `<input type="checkbox" id="siswa-checkbox-${data}" class="dt-checkboxes form-check-input checkbox-siswa" value="${data}">`;
+                        render: function (data, type, row) {
+                            const inactive = Number(row.STCUST ?? 1) !== 1;
+                            const disabled = inactive ? 'disabled' : '';
+                            return `<input type="checkbox" id="siswa-checkbox-${data}" class="dt-checkboxes form-check-input checkbox-siswa" value="${data}" ${disabled}>`;
                         },
                         checkboxes: {
                             selectRow: true,
@@ -501,6 +503,18 @@
                     style: 'multi'
                 },
                 scrollX: true,
+            });
+
+            tableSiswa.on('select', function (e, dt, type, indexes) {
+                if (type !== 'row') {
+                    return;
+                }
+                indexes.forEach(function (idx) {
+                    const row = tableSiswa.row(idx).data();
+                    if (Number(row?.STCUST ?? 1) !== 1) {
+                        tableSiswa.row(idx).deselect();
+                    }
+                });
             });
 
             tablePost = $('#table-post').DataTable({

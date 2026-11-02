@@ -190,10 +190,11 @@
                     let filterForm = $(`#${dtOptions.formId}`);
                     filterForm.on('submit', function (e) {
                         e.preventDefault();
+                        $(`#${dtOptions.formId} [name="filter[saldo_positif]"]`).val('');
                         dataReFilter(dtOptions.tableId);
                     });
                     $('#btn-cari-saldo').on('click', function () {
-                        $(`#${dtOptions.formId} [name="filter[saldo_positif]"]`).val('');
+                        $(`#${dtOptions.formId} [name="filter[saldo_positif]"]`).val('1');
                         dataReFilter(dtOptions.tableId);
                     });
                     filterForm.on('reset', function (e) {
