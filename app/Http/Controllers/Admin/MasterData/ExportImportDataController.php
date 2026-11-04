@@ -299,6 +299,14 @@ class ExportImportDataController extends Controller
                         $this->resolveOrtuForDb($item),
                     );
 
+                    $noWa = trim((string) ($item['no_wa'] ?? $item['nowa'] ?? $item['no wa'] ?? ''));
+                    if ($noWa !== '') {
+                        scctcust::where('NOCUST', $nis)->update([
+                            'NO_WA' => $noWa,
+                            'LastUpdate' => Carbon::now(),
+                        ]);
+                    }
+
                     $saved++;
                 }
 

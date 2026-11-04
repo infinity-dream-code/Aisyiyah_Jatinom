@@ -123,13 +123,17 @@ class SaldoVirtualAccountController extends Controller
 
     protected function transListQuery()
     {
+        if (!MultiVa::closeEnabled()) {
+            return $this->transListFallbackQuery();
+        }
+
         $view = MultiVa::resolveExistingView([
             MultiVa::transView($this->reffBank),
+            'v_trans_saldo_multivapertagihan1',
+            'v_trans_saldo_multivapertagihan2',
             'v_trans_saldo',
             'v_trans_saldo_multivapertagihan93',
-            'v_trans_saldo_multivapertagihan1',
             'v_trans_saldo_multivapertagihan94',
-            'v_trans_saldo_multivapertagihan2',
             'v_trans_saldo_va',
         ]);
 
@@ -153,6 +157,13 @@ class SaldoVirtualAccountController extends Controller
                 ]);
         }
 
+        return $this->transListFallbackQuery();
+    }
+
+    protected function transListFallbackQuery()
+    {
+        $reffBanks = MultiVa::saldoReffBankValues();
+
         return DB::connection('DATA_MYSQL')
             ->table('sccttran as trx')
             ->leftJoin('scctcust as c', 'c.CUSTID', '=', 'trx.CUSTID')
@@ -160,6 +171,11 @@ class SaldoVirtualAccountController extends Controller
                 $q->whereNull('trx.FIDBANK')
                     ->orWhereRaw("TRIM(COALESCE(CAST(trx.FIDBANK AS CHAR), '')) = ''")
                     ->orWhereRaw("TRIM(COALESCE(CAST(trx.FIDBANK AS CHAR), '')) != ?", ['1140000']);
+            })
+            ->where(function ($q) use ($reffBanks) {
+                $q->whereIn('trx.REFFBANK', $reffBanks)
+                    ->orWhereNull('trx.REFFBANK')
+                    ->orWhereRaw("TRIM(COALESCE(CAST(trx.REFFBANK AS CHAR), '')) = ''");
             })
             ->select([
                 'trx.TRXDATE as TRXDATE',

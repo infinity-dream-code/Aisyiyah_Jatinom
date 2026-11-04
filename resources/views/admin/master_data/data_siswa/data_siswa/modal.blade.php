@@ -146,7 +146,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label required" for="edit-nowa">Nomor WhatsApp</label>
-                                    <input type="text" class="form-control numberOnly" id="edit-nowa" name="nowa"
+                                    <input type="text" class="form-control numberOnly" id="edit-nowa" name="no_wa"
                                            placeholder="Nomor WhatsApp" required>
                                 </div>
                                 <div class="mb-3">
@@ -277,7 +277,7 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label required" for="nowa">Nomor WhatsApp</label>
-                                    <input type="text" class="form-control numberOnly" id="nowa" name="nowa"
+                                    <input type="text" class="form-control numberOnly" id="nowa" name="no_wa"
                                            placeholder="Nomor WhatsApp" required>
                                 </div>
                                 <div class="mb-3">

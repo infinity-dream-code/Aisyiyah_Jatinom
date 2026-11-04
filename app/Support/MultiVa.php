@@ -338,16 +338,21 @@ class MultiVa
         return null;
     }
 
-    /** View saldo: v_saldo_va (open-only) / multiVA 93-94 / multiVA 1-2 / fallback. */
+    /** View saldo: open-only pakai fallback (join scctcust); dual-VA prioritas view 1 sebelum 93. */
     public static function saldoQuery(string $reffBank)
     {
+        // Blitar/open-only: v_saldo_va biasanya hanya NOCUST+SALDO → filter CODE01 di menu gagal.
+        if (!self::closeEnabled()) {
+            return self::fallbackSaldoQuery();
+        }
+
         $view = self::resolveExistingView([
             self::saldoView($reffBank),
+            'v_saldo_va_multivapertagihan1',
+            'v_saldo_va_multivapertagihan2',
             'v_saldo_va',
             'v_saldo_va_multivapertagihan93',
-            'v_saldo_va_multivapertagihan1',
             'v_saldo_va_multivapertagihan94',
-            'v_saldo_va_multivapertagihan2',
             'v_saldo_virtual_account',
         ]);
 
@@ -358,16 +363,20 @@ class MultiVa
         return self::fallbackSaldoQuery();
     }
 
-    /** View transaksi saldo: v_trans_saldo (open-only) / multiVA / fallback. */
+    /** View transaksi saldo: open-only / multiVA / fallback. */
     public static function transQuery(string $reffBank)
     {
+        if (!self::closeEnabled()) {
+            return self::fallbackTransQuery();
+        }
+
         $view = self::resolveExistingView([
             self::transView($reffBank),
+            'v_trans_saldo_multivapertagihan1',
+            'v_trans_saldo_multivapertagihan2',
             'v_trans_saldo',
             'v_trans_saldo_multivapertagihan93',
-            'v_trans_saldo_multivapertagihan1',
             'v_trans_saldo_multivapertagihan94',
-            'v_trans_saldo_multivapertagihan2',
             'v_trans_saldo_va',
         ]);
 
@@ -378,10 +387,27 @@ class MultiVa
         return self::fallbackTransQuery();
     }
 
-    /** Fallback Saldo VA tanpa view multi-VA (exclude manual cash 1140000). */
+    /** REFFBANK yang dihitung sebagai saldo VA (Blitar 88 + legacy 93/1/XX). */
+    public static function saldoReffBankValues(): array
+    {
+        $values = array_filter([
+            self::storedReffBank(),
+            self::OPEN,
+            self::CLOSE,
+            self::routineSuffix(self::OPEN),
+            self::routineSuffix(self::CLOSE),
+            'XX',
+            'xx',
+        ]);
+
+        return array_values(array_unique($values));
+    }
+
+    /** Fallback Saldo VA: join scctcust + agregasi sccttran (exclude cash 1140000). */
     public static function fallbackSaldoQuery()
     {
         $conn = DB::connection('DATA_MYSQL');
+        $reffBanks = self::saldoReffBankValues();
 
         $agg = $conn->table('sccttran')
             ->select([
@@ -392,6 +418,11 @@ class MultiVa
                 $q->whereNull('FIDBANK')
                     ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) = ''")
                     ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) != ?", ['1140000']);
+            })
+            ->where(function ($q) use ($reffBanks) {
+                $q->whereIn('REFFBANK', $reffBanks)
+                    ->orWhereNull('REFFBANK')
+                    ->orWhereRaw("TRIM(COALESCE(CAST(REFFBANK AS CHAR), '')) = ''");
             })
             ->groupBy('CUSTID');
 

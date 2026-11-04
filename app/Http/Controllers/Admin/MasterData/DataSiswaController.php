@@ -614,6 +614,7 @@ class DataSiswaController extends Controller
                 "alamat" => ["nullable", "string", "max:255"],
                 "gender" => ["nullable", "string", "max:50"],
                 "no_wa" => ["nullable", "string", "max:50"],
+                "nowa" => ["nullable", "string", "max:50"],
                 "stcust" => ["nullable", "in:0,1"],
             ],
             ValidationMessage::messages(),
@@ -635,13 +636,15 @@ class DataSiswaController extends Controller
             return response()->json(["message" => "Siswa tidak ditemukan!"], 422);
         }
 
+        $noWa = trim((string) ($request->input("no_wa") ?: $request->input("nowa") ?: ""));
+
         try {
             DB::beginTransaction();
             $payload = [
                 "GENUS" => $request->input("ayah") ?: null,
                 "CODE04" => $request->input("gender") ?: null,
                 "DESC05" => $request->input("alamat") ?: null,
-                "NO_WA" => $request->input("no_wa") ?: null,
+                "NO_WA" => $noWa !== "" ? $noWa : null,
                 "STCUST" => $request->filled("stcust")
                     ? (int) $request->input("stcust")
                     : (int) ($siswa->STCUST ?? 0),
