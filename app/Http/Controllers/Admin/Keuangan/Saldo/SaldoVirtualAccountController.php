@@ -17,7 +17,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
-use Mockery\Exception;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SaldoVirtualAccountController extends Controller
@@ -199,7 +198,12 @@ class SaldoVirtualAccountController extends Controller
             return $query;
         }
 
-        if ($siswa->NOCUST) {
+        // Open-only memakai fallback sccttran (kolom CUSTID), bukan view NOCUST.
+        if (!MultiVa::closeEnabled()) {
+            return $query->where('CUSTID', $siswa->CUSTID);
+        }
+
+        if ($siswa->NOCUST && $siswa->NOCUST !== '-') {
             return $query->where($nocustCol, $siswa->NOCUST);
         }
 
@@ -264,12 +268,21 @@ class SaldoVirtualAccountController extends Controller
                 $data['totalDebet'] = (int) (clone $trxQuery)->sum('DEBET');
 //                $data['siswa']-> = $NOVA;
             } else {
-                throw new Exception('Siswa tidak ditemukan');
+                throw new \RuntimeException('Siswa tidak ditemukan');
             }
 
             return view('admin.keuangan.saldo.saldo_virtual_account.show', $data);
         } catch (\Exception $e) {
-            return redirect()->route($this->routeBase . '.index')->with('error', 'Siswa tidak ditemukan!');
+            Log::error('saldo-va.show.failed', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $message = stripos($e->getMessage(), 'Siswa tidak ditemukan') !== false
+                ? 'Siswa tidak ditemukan!'
+                : 'Gagal memuat detail transaksi saldo. Silakan coba lagi.';
+
+            return redirect()->route($this->routeBase . '.index')->with('error', $message);
         }
     }
 

@@ -444,12 +444,19 @@ class MultiVa
 
     public static function fallbackTransQuery()
     {
+        $reffBanks = self::saldoReffBankValues();
+
         return DB::connection('DATA_MYSQL')
             ->table('sccttran')
             ->where(function ($q) {
                 $q->whereNull('FIDBANK')
                     ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) = ''")
                     ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) != ?", ['1140000']);
+            })
+            ->where(function ($q) use ($reffBanks) {
+                $q->whereIn('REFFBANK', $reffBanks)
+                    ->orWhereNull('REFFBANK')
+                    ->orWhereRaw("TRIM(COALESCE(CAST(REFFBANK AS CHAR), '')) = ''");
             });
     }
 
