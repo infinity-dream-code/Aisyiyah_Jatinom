@@ -149,24 +149,20 @@
                 getDT(dtOptions);
 
                 setTimeout(function () {
-                    let total = 0;
-                    let kredit = {{$totalKredit}};
-                    let debet = {{$totalDebet}};
+                    let total = parseInt({{ (int) ($totalSaldo ?? (($totalKredit ?? 0) - ($totalDebet ?? 0))) }}, 10) || 0;
 
-                    total = parseInt(kredit) - parseInt(debet);
-
-                    total = new Intl.NumberFormat('id-ID', {
+                    const totalFormatted = new Intl.NumberFormat('id-ID', {
                         style: "currency",
                         currency: "IDR",
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0
                     }).format(total);
 
-                    document.getElementsByClassName('saldo-siswa')[0].innerHTML = total;
+                    document.getElementsByClassName('saldo-siswa')[0].innerHTML = totalFormatted;
 
                     let totalRow = $('<tr class="custom-footer"></tr>');
                     totalRow.append('<th colspan="5" class="fw-bolder">TOTAL SALDO</th>');
-                    totalRow.append(`<th colspan="2" class="fw-bolder text-end">${total}</th>`);
+                    totalRow.append(`<th colspan="2" class="fw-bolder text-end">${totalFormatted}</th>`);
                     $(`#${dtOptions.tableId} tfoot`).append(totalRow);
                 },300)
             }

@@ -317,8 +317,18 @@ class MultiVa
 
         try {
             $schema = Schema::connection('DATA_MYSQL');
-            $cache[$table] = $schema->hasTable($table)
-                || (method_exists($schema, 'hasView') && $schema->hasView($table));
+            if ($schema->hasTable($table)
+                || (method_exists($schema, 'hasView') && $schema->hasView($table))) {
+                return $cache[$table] = true;
+            }
+
+            // Schema::hasTable sering melewatkan VIEW MySQL — cek information_schema.
+            $row = DB::connection('DATA_MYSQL')->selectOne(
+                'SELECT 1 AS ok FROM information_schema.tables
+                 WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1',
+                [$table]
+            );
+            $cache[$table] = !empty($row);
         } catch (\Throwable $e) {
             $cache[$table] = false;
         }
@@ -338,11 +348,15 @@ class MultiVa
         return null;
     }
 
-    /** View saldo: open-only pakai fallback (join scctcust); dual-VA prioritas view 1 sebelum 93. */
+    /** View saldo: utamakan v_saldo_va (sumber kebenaran Blitar); fallback hanya jika view tidak ada. */
     public static function saldoQuery(string $reffBank)
     {
-        // Blitar/open-only: v_saldo_va biasanya hanya NOCUST+SALDO → filter CODE01 di menu gagal.
         if (!self::closeEnabled()) {
+            // Blitar: selalu coba v_saldo_va dulu (probe query), jangan andalkan Schema saja.
+            if (self::probeView('v_saldo_va')) {
+                return DB::connection('DATA_MYSQL')->table('v_saldo_va');
+            }
+
             return self::fallbackSaldoQuery();
         }
 
@@ -361,6 +375,23 @@ class MultiVa
         }
 
         return self::fallbackSaldoQuery();
+    }
+
+    /** Pastikan view/tabel bisa di-query (lebih andal dari Schema::hasTable untuk VIEW). */
+    public static function probeView(string $name): bool
+    {
+        static $cache = [];
+
+        if (array_key_exists($name, $cache)) {
+            return $cache[$name];
+        }
+
+        try {
+            DB::connection('DATA_MYSQL')->table($name)->limit(1)->get();
+            return $cache[$name] = true;
+        } catch (\Throwable $e) {
+            return $cache[$name] = false;
+        }
     }
 
     /** View transaksi saldo: open-only / multiVA / fallback. */
@@ -442,21 +473,23 @@ class MultiVa
             ->select($select);
     }
 
+    /**
+     * Riwayat transaksi per siswa (termasuk cash).
+     * Agregasi saldo tetap pakai fallbackSaldoQuery yang exclude cash 1140000.
+     */
     public static function fallbackTransQuery()
     {
         $reffBanks = self::saldoReffBankValues();
 
         return DB::connection('DATA_MYSQL')
             ->table('sccttran')
-            ->where(function ($q) {
-                $q->whereNull('FIDBANK')
-                    ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) = ''")
-                    ->orWhereRaw("TRIM(COALESCE(CAST(FIDBANK AS CHAR), '')) != ?", ['1140000']);
-            })
             ->where(function ($q) use ($reffBanks) {
                 $q->whereIn('REFFBANK', $reffBanks)
                     ->orWhereNull('REFFBANK')
-                    ->orWhereRaw("TRIM(COALESCE(CAST(REFFBANK AS CHAR), '')) = ''");
+                    ->orWhereRaw("TRIM(COALESCE(CAST(REFFBANK AS CHAR), '')) = ''")
+                    // Cash/teller manual: REFFBANK bisa 88, tapi tetap tampil di riwayat
+                    ->orWhereRaw("UPPER(TRIM(COALESCE(METODE, ''))) IN (?, ?, ?)", ['CASH', 'FROM TELLER', 'MNL'])
+                    ->orWhereIn('FIDBANK', ['1140000', '1140001', '1140003', '1140004', '1140005', '1200001', '1200002']);
             });
     }
 
@@ -560,9 +593,27 @@ class MultiVa
 
         $read = static function ($query) use ($custId) {
             $row = $query->where('CUSTID', $custId)->first();
+            if ($row) {
+                return (int) ($row->SALDO ?? $row->saldo ?? 0);
+            }
+
+            // Beberapa client kirim NIS di param siswa — coba NOCUST.
+            $row = $query->where('NOCUST', $custId)->first();
 
             return (int) ($row->SALDO ?? $row->saldo ?? 0);
         };
+
+        // Open-only: baca langsung v_saldo_va agar sama dengan Navicat / menu Saldo VA.
+        if (!self::closeEnabled() && self::probeView('v_saldo_va')) {
+            try {
+                return $read(DB::connection('DATA_MYSQL')->table('v_saldo_va'));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('multiva.cust_saldo.v_saldo_va_failed', [
+                    'custid' => $custId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         try {
             return $read(self::saldoQuery($reffBank));

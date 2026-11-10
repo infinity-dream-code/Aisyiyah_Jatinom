@@ -166,19 +166,17 @@ class SaldoVirtualAccountController extends Controller
         return DB::connection('DATA_MYSQL')
             ->table('sccttran as trx')
             ->leftJoin('scctcust as c', 'c.CUSTID', '=', 'trx.CUSTID')
-            ->where(function ($q) {
-                $q->whereNull('trx.FIDBANK')
-                    ->orWhereRaw("TRIM(COALESCE(CAST(trx.FIDBANK AS CHAR), '')) = ''")
-                    ->orWhereRaw("TRIM(COALESCE(CAST(trx.FIDBANK AS CHAR), '')) != ?", ['1140000']);
-            })
             ->where(function ($q) use ($reffBanks) {
                 $q->whereIn('trx.REFFBANK', $reffBanks)
                     ->orWhereNull('trx.REFFBANK')
-                    ->orWhereRaw("TRIM(COALESCE(CAST(trx.REFFBANK AS CHAR), '')) = ''");
+                    ->orWhereRaw("TRIM(COALESCE(CAST(trx.REFFBANK AS CHAR), '')) = ''")
+                    ->orWhereRaw("UPPER(TRIM(COALESCE(trx.METODE, ''))) IN (?, ?, ?)", ['CASH', 'FROM TELLER', 'MNL'])
+                    ->orWhereIn('trx.FIDBANK', ['1140000', '1140001', '1140003', '1140004', '1140005', '1200001', '1200002']);
             })
             ->select([
                 'trx.TRXDATE as TRXDATE',
-                DB::raw('COALESCE(trx.METODE, trx.NOREFF, "") as KETERANGAN'),
+                'trx.METODE as METODE',
+                DB::raw('COALESCE(NULLIF(TRIM(trx.METODE), ""), trx.NOREFF, "") as KETERANGAN'),
                 'trx.DEBET as DEBET',
                 'trx.KREDIT as KREDIT',
                 'c.NOCUST as NOCUST',
@@ -263,10 +261,10 @@ class SaldoVirtualAccountController extends Controller
                 }
                 $data['siswa']->NOVA = $NOVA;
 
-                $trxQuery = $this->applySiswaToTrans($this->transQuery(), $data['siswa']);
-                $data['totalKredit'] = (int) (clone $trxQuery)->sum('KREDIT');
-                $data['totalDebet'] = (int) (clone $trxQuery)->sum('DEBET');
-//                $data['siswa']-> = $NOVA;
+                // Total Saldo harus sama dengan v_saldo_va, bukan selisih semua baris riwayat (cash dll).
+                $data['totalSaldo'] = MultiVa::custSaldo($data['siswa']->CUSTID, $this->reffBank);
+                $data['totalKredit'] = $data['totalSaldo'];
+                $data['totalDebet'] = 0;
             } else {
                 throw new \RuntimeException('Siswa tidak ditemukan');
             }
@@ -382,9 +380,31 @@ class SaldoVirtualAccountController extends Controller
         return $query->orderBy('TRXDATE', 'desc')
             ->get()
             ->map(function ($item) {
-                $item->METODE = $item->KETERANGAN ?? $item->METODE ?? null;
+                $metode = trim((string) ($item->METODE ?? $item->KETERANGAN ?? ''));
+                $item->METODE = $this->formatMetodeLabel($metode, (string) ($item->FIDBANK ?? ''));
                 return $item;
             });
+    }
+
+    private function formatMetodeLabel(string $metode, string $fidBank = ''): string
+    {
+        $upper = strtoupper(trim($metode));
+        $fid = preg_replace('/\D/', '', $fidBank);
+
+        if ($upper === 'CASH' || in_array($fid, ['1140000', '1140001', '1140003', '1140004', '1140005'], true)) {
+            return 'CASH';
+        }
+        if ($upper === 'FROM TELLER' || $fid === '1140002') {
+            return 'FROM TELLER';
+        }
+        if ($upper === 'FROM INVOICE') {
+            return 'TOP UP / Payment';
+        }
+        if ($upper === 'MNL') {
+            return 'MANUAL';
+        }
+
+        return $metode !== '' ? $metode : '-';
     }
 
     public function getColumn(Request $request)
@@ -592,8 +612,9 @@ class SaldoVirtualAccountController extends Controller
 
         $searchValue = $search_arr['value'] ?? '';
 
+        $metodeColumn = MultiVa::closeEnabled() ? 'KETERANGAN' : 'METODE';
         $columnName = match ($columnName) {
-            'METODE', 'KETERANGAN' => 'KETERANGAN',
+            'METODE', 'KETERANGAN' => $metodeColumn,
             'DEBET' => 'DEBET',
             'KREDIT' => 'KREDIT',
             'NOREFF' => 'NOREFF',
@@ -606,10 +627,12 @@ class SaldoVirtualAccountController extends Controller
 
         if (!blank($searchValue)) {
             $sanitizeSearch = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $searchValue);
-            $query->where(function ($q) use ($sanitizeSearch) {
-                $q->where('KETERANGAN', 'like', '%' . $sanitizeSearch . '%')
-                    ->orWhere('NOREFF', 'like', '%' . $sanitizeSearch . '%')
-                    ->orWhere('NOCUST', 'like', '%' . $sanitizeSearch . '%');
+            $query->where(function ($q) use ($sanitizeSearch, $metodeColumn) {
+                $q->where($metodeColumn, 'like', '%' . $sanitizeSearch . '%')
+                    ->orWhere('NOREFF', 'like', '%' . $sanitizeSearch . '%');
+                if (MultiVa::closeEnabled()) {
+                    $q->orWhere('NOCUST', 'like', '%' . $sanitizeSearch . '%');
+                }
             });
         }
 
@@ -624,7 +647,13 @@ class SaldoVirtualAccountController extends Controller
         $records = $pageQuery
             ->get()
             ->map(function ($item) {
-                $item->METODE = $item->KETERANGAN ?? null;
+                $metode = trim((string) ($item->METODE ?? $item->KETERANGAN ?? ''));
+                if ($metode === '' && !blank($item->NOREFF ?? null)) {
+                    $metode = (string) $item->NOREFF;
+                }
+                $item->METODE = $this->formatMetodeLabel($metode, (string) ($item->FIDBANK ?? ''));
+                $item->KETERANGAN = $item->METODE;
+
                 return $item;
             })
             ->toArray();
@@ -662,12 +691,27 @@ class SaldoVirtualAccountController extends Controller
     public function getSaldo(Request $request)
     {
         try {
-            $custId = $request->input('siswa');
+            $siswaInput = trim((string) $request->input('siswa'));
+            $custId = $siswaInput;
+
+            // Pastikan pakai CUSTID: Select2 biasanya CUSTID, tapi antisipasi NIS.
+            $siswa = scctcust::query()
+                ->where(function ($q) use ($siswaInput) {
+                    $q->where('CUSTID', $siswaInput)
+                        ->orWhere('NOCUST', $siswaInput)
+                        ->orWhere('NUM2ND', $siswaInput);
+                })
+                ->first(['CUSTID', 'NOCUST']);
+            if ($siswa) {
+                $custId = (string) $siswa->CUSTID;
+            }
+
             $open = MultiVa::custSaldo($custId, MultiVa::OPEN);
             $payload = [
                 'saldo' => $open,
                 'saldo_open' => $open,
                 'saldo_93' => $open,
+                'custid' => $custId,
             ];
 
             if (MultiVa::closeEnabled()) {
